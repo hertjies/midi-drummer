@@ -52,7 +52,16 @@ local audio = {
     feedbackDuration = 0.1, -- How long trigger feedback lasts
     isReady = false,        -- Whether audio system is fully initialized and ready
     initializationStartTime = 0, -- Time when initialization started
-    audioLatency = 0.005    -- Estimated audio system latency in seconds
+    audioLatency = 0.005,   -- Estimated audio system latency in seconds
+    
+    -- Metronome system
+    metronomeEnabled = false,     -- Whether metronome is currently enabled
+    metronomeSamples = {},        -- Metronome sound samples (normal and accent)
+    metronomeSources = {},        -- Prebuffered metronome sources
+    metronomeVolumes = {          -- Separate volumes for normal and accent clicks
+        normal = 0.6,             -- Default normal click volume (0.0 to 1.0)
+        accent = 0.8              -- Default accent click volume (0.0 to 1.0)
+    }
 }
 
 -- Initialize the audio system with prebuffering for optimal timing
@@ -78,6 +87,9 @@ function audio:init()
     
     -- Create prebuffered sources for immediate playback
     self:createPrebufferedSources()
+    
+    -- Initialize metronome sounds
+    self:initializeMetronome()
     
     -- Mark system as ready after initialization
     self.isReady = true
@@ -191,6 +203,99 @@ function audio:generateFallbackSample(track)
     if love and love.audio and love.audio.newSource then
         self.samples[track] = love.audio.newSource(soundData)
     end
+end
+
+-- Initialize metronome sounds and prebuffered sources
+-- Creates two metronome sounds: normal click and accented click
+function audio:initializeMetronome()
+    -- Initialize metronome sources containers
+    self.metronomeSources = {
+        normal = {},  -- Sources for normal clicks
+        accent = {}   -- Sources for accented clicks
+    }
+    
+    -- Generate metronome sounds if Love2D audio is available
+    if not (love and love.audio and love.sound) then
+        print("Metronome: Audio system not available, using silent metronome")
+        return
+    end
+    
+    -- Generate normal metronome click (clock tick sound)
+    self:generateClockTick("normal", 1000, 0.04)  -- 1000Hz, 40ms duration
+    
+    -- Generate accented metronome click (accented clock tick sound) 
+    self:generateClockTick("accent", 1400, 0.06)  -- 1400Hz, 60ms duration
+    
+    -- Create prebuffered sources for both types with separate volumes
+    for clickType, _ in pairs(self.metronomeSamples) do
+        for i = 1, 4 do  -- 4 prebuffered sources each
+            if self.metronomeSamples[clickType] then
+                local source = self.metronomeSamples[clickType]:clone()
+                source:setVolume(self.metronomeVolumes[clickType])
+                table.insert(self.metronomeSources[clickType], source)
+            end
+        end
+    end
+    
+    print("Metronome initialized with normal and accent clicks")
+end
+
+-- Generate a clock tick sound that mimics a real mechanical clock
+-- @param clickType: "normal" or "accent"
+-- @param frequency: Primary tick frequency in Hz
+-- @param duration: Click duration in seconds
+function audio:generateClockTick(clickType, frequency, duration)
+    local samples = math.floor(duration * self.sampleRate)
+    local soundData = love.sound.newSoundData(samples, self.sampleRate, 16, 1)
+    
+    for i = 0, samples - 1 do
+        local t = i / self.sampleRate
+        
+        -- Create a clock-like tick with multiple frequency components
+        local amplitude = 0.4  -- Base amplitude
+        
+        -- Primary frequency component (main tick)
+        local primary = math.sin(2 * math.pi * frequency * t)
+        
+        -- Higher harmonic for metallic click character
+        local harmonic = math.sin(2 * math.pi * frequency * 2.3 * t) * 0.3
+        
+        -- Brief noise burst for mechanical click character (first 5ms)
+        local noise = 0
+        if t < 0.005 then
+            noise = (math.random() - 0.5) * 0.4 * (1 - t / 0.005)
+        end
+        
+        -- Combine components
+        local wave = primary + harmonic + noise
+        
+        -- Create sharp attack and quick decay envelope for crisp tick
+        local envelope = 1.0
+        if t < 0.002 then
+            -- Very sharp attack (2ms)
+            envelope = t / 0.002
+        else
+            -- Exponential decay after attack
+            envelope = math.exp(-(t - 0.002) * 25)
+        end
+        
+        -- Apply accent emphasis for accent clicks
+        if clickType == "accent" then
+            amplitude = amplitude * 1.3  -- 30% louder
+            -- Add lower frequency component for fuller sound
+            local lowComponent = math.sin(2 * math.pi * frequency * 0.5 * t) * 0.2
+            wave = wave + lowComponent
+        end
+        
+        local sample = wave * envelope * amplitude
+        
+        -- Clamp to valid range
+        sample = math.max(-1, math.min(1, sample))
+        soundData:setSample(i, sample)
+    end
+    
+    -- Create audio source from generated data
+    self.metronomeSamples[clickType] = love.audio.newSource(soundData)
 end
 
 -- Load a custom sample for a specific track
@@ -379,6 +484,15 @@ function audio:getVolume(track)
     return 0
 end
 
+-- Reset all track volumes to 70% (default level)
+-- Sets all 8 tracks to the standard 0.7 volume level
+-- Updates all prebuffered and active sources immediately
+function audio:resetAllVolumes()
+    for track = 1, 8 do
+        self:setVolume(track, 0.7)  -- Reset to 70% volume
+    end
+end
+
 -- Update audio system
 -- Called every frame to update trigger feedback and cleanup
 -- @param dt: Delta time since last frame
@@ -439,6 +553,107 @@ function audio:getStats()
     end
     
     return stats
+end
+
+-- Toggle metronome on/off
+-- @param enabled: true to enable, false to disable, nil to toggle current state
+-- @return: New metronome state (true/false)
+function audio:setMetronomeEnabled(enabled)
+    if enabled == nil then
+        -- Toggle current state
+        self.metronomeEnabled = not self.metronomeEnabled
+    else
+        self.metronomeEnabled = enabled
+    end
+    
+    print("Metronome " .. (self.metronomeEnabled and "enabled" or "disabled"))
+    return self.metronomeEnabled
+end
+
+-- Get current metronome state
+-- @return: true if metronome is enabled, false otherwise
+function audio:isMetronomeEnabled()
+    return self.metronomeEnabled
+end
+
+-- Set metronome volume for specific click type
+-- @param clickType: "normal" or "accent"
+-- @param volume: Volume level (0.0 to 1.0)
+function audio:setMetronomeVolume(clickType, volume)
+    if not self.metronomeVolumes[clickType] then
+        print("Error: Invalid metronome click type: " .. tostring(clickType))
+        return
+    end
+    
+    self.metronomeVolumes[clickType] = math.max(0, math.min(1, volume))
+    
+    -- Update volume on all prebuffered metronome sources of this type
+    if self.metronomeSources[clickType] then
+        for _, source in ipairs(self.metronomeSources[clickType]) do
+            source:setVolume(self.metronomeVolumes[clickType])
+        end
+    end
+end
+
+-- Get current metronome volume for specific click type
+-- @param clickType: "normal" or "accent"
+-- @return: Current metronome volume (0.0 to 1.0)
+function audio:getMetronomeVolume(clickType)
+    if not self.metronomeVolumes[clickType] then
+        return 0.6  -- Default fallback
+    end
+    return self.metronomeVolumes[clickType]
+end
+
+-- Play a metronome click for the specified step
+-- @param step: Current step number (1-16)
+-- @param delayVisualFeedback: Optional delay for visual feedback alignment
+function audio:playMetronome(step, delayVisualFeedback)
+    -- Only play if metronome is enabled
+    if not self.metronomeEnabled then
+        return
+    end
+    
+    -- Check if audio system is available
+    if not (love and love.audio and love.audio.play) then
+        return
+    end
+    
+    -- Determine if this is an accented beat (steps 1, 5, 9, 13)
+    local isAccent = (step == 1 or step == 5 or step == 9 or step == 13)
+    local clickType = isAccent and "accent" or "normal"
+    
+    -- Get an available prebuffered source
+    local source = nil
+    if #self.metronomeSources[clickType] > 0 then
+        source = table.remove(self.metronomeSources[clickType], 1)
+        -- Update volume in case it changed
+        source:setVolume(self.metronomeVolumes[clickType])
+    elseif self.metronomeSamples[clickType] then
+        -- Fall back to creating a new source
+        source = self.metronomeSamples[clickType]:clone()
+        source:setVolume(self.metronomeVolumes[clickType])
+    end
+    
+    if source then
+        -- Play the metronome click
+        love.audio.play(source)
+        
+        -- Return source to pool after a short delay (longer than click duration)
+        -- This is a simple approach - in a production system you might want
+        -- more sophisticated source management
+        self:scheduleMetronomeSourceReturn(source, clickType, 0.15)
+    end
+end
+
+-- Schedule return of metronome source to the prebuffered pool
+-- @param source: Audio source to return
+-- @param clickType: "normal" or "accent" 
+-- @param delay: Delay before returning (in seconds)
+function audio:scheduleMetronomeSourceReturn(source, clickType, delay)
+    -- Simple implementation: add back to pool immediately
+    -- In a more complex system, you might use a timer
+    table.insert(self.metronomeSources[clickType], source)
 end
 
 return audio

@@ -39,6 +39,18 @@ local test_timing_fixes = require("test_timing_fixes")
 local test_clock_timing = require("test_clock_timing")
 local test_audio_timing_fixes = require("test_audio_timing_fixes")
 local test_sequencer_audio_readiness = require("test_sequencer_audio_readiness")
+local test_bpm_text_input = require("test_bpm_text_input")
+local test_bpm_slider_sync = require("test_bpm_slider_sync")
+local test_real_application_flow = require("test_real_application_flow")
+local test_clear_pattern = require("test_clear_pattern")
+local test_reset_volumes = require("test_reset_volumes")
+local test_ui_reorganization = require("test_ui_reorganization")
+local test_track_colors = require("test_track_colors")
+local test_subtle_ui_colors = require("test_subtle_ui_colors")
+local test_metronome = require("test_metronome")
+local test_improved_metronome = require("test_improved_metronome")
+local test_sequence_grouping = require("test_sequence_grouping")
+local test_ui_border_enhancements = require("test_ui_border_enhancements")
 
 -- Run all tests
 print("=== MIDI Drum Sequencer Test Suite ===")
@@ -84,6 +96,42 @@ allPassed = luaunit.run(test_audio_timing_fixes) and allPassed
 
 print("\nRunning Sequencer Audio Readiness Tests...")
 allPassed = luaunit.run(test_sequencer_audio_readiness) and allPassed
+
+print("\nRunning BPM Text Input Tests...")
+allPassed = luaunit.run(test_bpm_text_input) and allPassed
+
+print("\nRunning BPM Slider Sync Tests...")
+allPassed = luaunit.run(test_bpm_slider_sync) and allPassed
+
+print("\nRunning Real Application Flow Tests...")
+allPassed = luaunit.run(test_real_application_flow) and allPassed
+
+print("\nRunning Clear Pattern Tests...")
+allPassed = luaunit.run(test_clear_pattern) and allPassed
+
+print("\nRunning Reset Volumes Tests...")
+allPassed = luaunit.run(test_reset_volumes) and allPassed
+
+print("\nRunning UI Reorganization Tests...")
+allPassed = luaunit.run(test_ui_reorganization) and allPassed
+
+print("\nRunning Track Colors Tests...")
+allPassed = luaunit.run(test_track_colors) and allPassed
+
+print("\nRunning Subtle UI Colors Tests...")
+allPassed = luaunit.run(test_subtle_ui_colors) and allPassed
+
+print("\nRunning Metronome Tests...")
+allPassed = luaunit.run(test_metronome) and allPassed
+
+print("\nRunning Improved Metronome Tests...")
+allPassed = luaunit.run(test_improved_metronome) and allPassed
+
+print("\nRunning Sequence Grouping Tests...")
+allPassed = luaunit.run(test_sequence_grouping) and allPassed
+
+print("\nRunning UI Border Enhancement Tests...")
+allPassed = luaunit.run(test_ui_border_enhancements) and allPassed
 
 print("\n=== Test Summary ===")
 if allPassed then

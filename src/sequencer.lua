@@ -152,6 +152,11 @@ end
 -- Trigger sounds for all active tracks at the current step
 -- This will be connected to the audio module in Phase 3
 function sequencer:triggerCurrentStep()
+    -- Play metronome click for current step (if enabled)
+    if self.audio and self.audio.playMetronome then
+        self.audio:playMetronome(self.currentStep)
+    end
+    
     -- Check each track to see if current step is active
     for track = 1, 8 do
         if self.pattern[track][self.currentStep] then
@@ -333,10 +338,16 @@ end
 
 -- Clear all steps in the pattern
 -- Resets the entire pattern to empty
+-- Clear all pattern steps
+-- Sets all steps in the 8x16 pattern grid to inactive (false)
+-- This provides a quick way to start with a blank pattern
+-- @note Does not affect playback state or BPM settings
 function sequencer:clearPattern()
+    -- Iterate through all 8 tracks
     for track = 1, 8 do
+        -- Iterate through all 16 steps in each track
         for step = 1, 16 do
-            self.pattern[track][step] = false
+            self.pattern[track][step] = false  -- Set step to inactive
         end
     end
 end
@@ -354,6 +365,44 @@ function sequencer:getActiveTracksAtStep(step)
         end
     end
     return activeTracks
+end
+
+-- Toggle metronome on/off
+-- @param enabled: true to enable, false to disable, nil to toggle
+-- @return: New metronome state (true/false)
+function sequencer:setMetronomeEnabled(enabled)
+    if self.audio and self.audio.setMetronomeEnabled then
+        return self.audio:setMetronomeEnabled(enabled)
+    end
+    return false
+end
+
+-- Get current metronome state
+-- @return: true if metronome is enabled, false otherwise
+function sequencer:isMetronomeEnabled()
+    if self.audio and self.audio.isMetronomeEnabled then
+        return self.audio:isMetronomeEnabled()
+    end
+    return false
+end
+
+-- Set metronome volume for specific click type
+-- @param clickType: "normal" or "accent"
+-- @param volume: Volume level (0.0 to 1.0)
+function sequencer:setMetronomeVolume(clickType, volume)
+    if self.audio and self.audio.setMetronomeVolume then
+        self.audio:setMetronomeVolume(clickType, volume)
+    end
+end
+
+-- Get current metronome volume for specific click type
+-- @param clickType: "normal" or "accent"
+-- @return: Current metronome volume (0.0 to 1.0)
+function sequencer:getMetronomeVolume(clickType)
+    if self.audio and self.audio.getMetronomeVolume then
+        return self.audio:getMetronomeVolume(clickType)
+    end
+    return 0.6  -- Default fallback
 end
 
 return sequencer

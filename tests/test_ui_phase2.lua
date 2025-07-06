@@ -111,27 +111,27 @@ end
 function TestUIPhase2:testBPMButtonClicks()
     -- Test decrease button
     sequencer:setBPM(120)
-    ui:mousepressed(ui.bpmSliderX - 30, ui.bpmSliderY - 5) -- Click decrease button (correct Y offset)
+    ui:mousepressed(ui.bpmSliderX - 30, ui.bpmSliderY + 10) -- Click decrease button (correct Y offset)
     luaunit.assertEquals(sequencer.bpm, 115)
     luaunit.assertEquals(ui.clickedButton, "-")
-    ui:mousereleased(ui.bpmSliderX - 30, ui.bpmSliderY - 5) -- Release button
+    ui:mousereleased(ui.bpmSliderX - 30, ui.bpmSliderY + 10) -- Release button
     
     -- Test increase button
-    ui:mousepressed(ui.bpmSliderX + ui.bpmSliderWidth + 40, ui.bpmSliderY - 5) -- Click increase button (correct Y offset)
+    ui:mousepressed(ui.bpmSliderX + ui.bpmSliderWidth + 20, ui.bpmSliderY + 10) -- Click increase button (correct Y offset)
     luaunit.assertEquals(sequencer.bpm, 120)
     luaunit.assertEquals(ui.clickedButton, "+")
-    ui:mousereleased(ui.bpmSliderX + ui.bpmSliderWidth + 40, ui.bpmSliderY - 5) -- Release button
+    ui:mousereleased(ui.bpmSliderX + ui.bpmSliderWidth + 20, ui.bpmSliderY + 10) -- Release button
     
     -- Test button limits
     sequencer:setBPM(60)
-    ui:mousepressed(ui.bpmSliderX - 30, ui.bpmSliderY - 5) -- Try to decrease below minimum (correct Y offset)
+    ui:mousepressed(ui.bpmSliderX - 30, ui.bpmSliderY + 10) -- Try to decrease below minimum (correct Y offset)
     luaunit.assertEquals(sequencer.bpm, 60) -- Should stay at 60
-    ui:mousereleased(ui.bpmSliderX - 30, ui.bpmSliderY - 5) -- Release button
+    ui:mousereleased(ui.bpmSliderX - 30, ui.bpmSliderY + 10) -- Release button
     
     sequencer:setBPM(300)
-    ui:mousepressed(ui.bpmSliderX + ui.bpmSliderWidth + 40, ui.bpmSliderY - 5) -- Try to increase above maximum (correct Y offset)
+    ui:mousepressed(ui.bpmSliderX + ui.bpmSliderWidth + 20, ui.bpmSliderY + 10) -- Try to increase above maximum (correct Y offset)
     luaunit.assertEquals(sequencer.bpm, 300) -- Should stay at 300
-    ui:mousereleased(ui.bpmSliderX + ui.bpmSliderWidth + 40, ui.bpmSliderY - 5) -- Release button
+    ui:mousereleased(ui.bpmSliderX + ui.bpmSliderWidth + 20, ui.bpmSliderY + 10) -- Release button
 end
 
 function TestUIPhase2:testBPMSliderDragging()

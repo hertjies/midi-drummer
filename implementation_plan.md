@@ -251,9 +251,9 @@ midi-drum-sequencer/
 - Memory usage optimization
 - CPU performance under load
 
-### Test Suite Status (December 2024)
-- **Total Test Coverage**: 77 tests across 10 test suites
-- **Pass Rate**: 100% (77/77 tests passing)
+### Test Suite Status (July 2025)
+- **Total Test Coverage**: 247 tests across 24 test suites
+- **Pass Rate**: 100% (247/247 tests passing)
 - **Test Categories**:
   - Core Sequencer Tests (7 tests)
   - Utility Function Tests (2 tests)
@@ -266,6 +266,20 @@ midi-drum-sequencer/
   - Bug Fix Validation Tests (6 tests)
   - Timing System Fix Tests (9 tests)
   - Clock-Based Timing Tests (10 tests)
+  - Audio Timing Fix Tests (9 tests)
+  - Sequencer Audio Readiness Tests (10 tests)
+  - BPM Text Input Feature Tests (19 tests)
+  - BPM Slider Sync Tests (11 tests)
+  - Real Application Flow Tests (5 tests)
+  - Clear Pattern Functionality Tests (12 tests)
+  - Reset Volumes Functionality Tests (12 tests)
+  - UI Reorganization Tests (12 tests)
+  - Track Colors Tests (12 tests)
+  - Subtle UI Colors Tests (12 tests)
+  - Metronome Functionality Tests (12 tests)
+  - Improved Metronome Tests (14 tests)
+  - Sequence Grid Visual Grouping Tests (12 tests)
+  - UI Border Enhancement Tests (15 tests)
 
 ### Clock-Based Timing Test Coverage
 - **Frame-Rate Independence**: Validates timing accuracy under variable frame rates
@@ -325,19 +339,74 @@ midi-drum-sequencer/
 - [ ] Undo/redo functionality
 - [ ] Advanced timing options (swing, shuffle)
 - [ ] Real-time MIDI output
-- [ ] BPM cannot also be input via text
-- [ ] Clear grid pattern
-- [ ] Quit application button
+- [x] **BPM text input functionality** - Direct BPM entry via text field
+- [x] **Clear grid pattern** - Dedicated Clear button to empty entire pattern grid
+- [x] **Reset all track levels to 70% button** - Dedicated Reset Vol button to restore default volumes
+- [x] **UI reorganization for better UX** - Eliminated overlapping elements and improved layout
+- [x] **Colorful track-based UI design** - Implemented 16 Xterm color palette with dynamic brightness
 - [ ] Sample Loader per track
-- [ ] Reset all track levels to 70% button
 - [ ] Export location select
 - [ ] Import file with location select
 - [ ] Velocity of hits
 - [ ] Track entry skip on loop, ie every second repeat, every 4th repeat
-- [ ] Add metronome
+- [x] **Add metronome** - Implemented audible metronome with accent beats and toggle functionality
 - [ ] Add precount
+- [x] **Overlapping labels** - Fixed through comprehensive UI reorganization
+- [x] **Colour each track select** - Implemented comprehensive track color system with Xterm palette
+- [x] **Subtle UI theming** - Added professional dark theme with subtle color accents
 
-### Bugs High Priority ✅ All Completed
+### Latest Features ✅ July 2025
+- [x] **BPM Text Input** - Direct BPM entry via dedicated text field with validation
+- [x] **Input Validation** - Automatic range clamping (60-300) and numeric-only input
+- [x] **Keyboard Navigation** - Enter/Escape/Backspace support for text input
+- [x] **Visual Polish** - Cursor animation and active/inactive state feedback
+- [x] **Smart Integration** - Seamless interaction with existing BPM controls
+- [x] **Comprehensive Testing** - 19 test cases covering all input scenarios
+- [x] **Clear Grid Pattern** - Dedicated Clear button in transport controls
+- [x] **Pattern Management** - Instantly clear entire pattern grid without affecting playback
+- [x] **UI Integration** - Clear button positioned between Reset and Export buttons
+- [x] **State Preservation** - Clear function preserves BPM and playback state
+- [x] **Test Coverage** - 12 comprehensive test cases for clear pattern functionality
+- [x] **Reset All Volumes** - Dedicated Reset Vol button above volume controls
+- [x] **Volume Management** - Instantly reset all track volumes to 70% (default level)
+- [x] **Audio Integration** - Updates all prebuffered and active audio sources immediately
+- [x] **UI Positioning** - Reset Vol button positioned above volume slider area
+- [x] **Comprehensive Testing** - 12 test cases covering all reset volume scenarios
+- [x] **UI Layout Reorganization** - Complete redesign for better UX and functionality
+- [x] **Overlap Elimination** - Fixed critical overlap between transport and BPM controls
+- [x] **Logical Grouping** - Organized UI into clear rows (BPM, Transport, Grid+Volume)
+- [x] **Improved Spacing** - Consistent spacing standards and accessibility guidelines
+- [x] **Window Optimization** - Increased window size to 900x650 for better fit
+- [x] **Layout Testing** - 12 comprehensive tests for positioning and spacing validation
+- [x] **Track Color System** - 8 distinct colors based on 16 Xterm color palette
+- [x] **Dynamic Color Brightness** - Three brightness levels (dim/normal/bright) based on state
+- [x] **Visual State Feedback** - Colors change dynamically during playback and interaction
+- [x] **Color-coded Track Labels** - Enhanced visual identification of tracks
+- [x] **Accessibility Compliant** - Color contrast and distinctiveness testing
+- [x] **Comprehensive Color Testing** - 12 tests covering all color functionality
+- [x] **Subtle UI Color System** - Professional dark theme with complementary color palette
+- [x] **Enhanced Visual Hierarchy** - Improved text colors, button states, and UI element contrast
+- [x] **Panel Backgrounds** - Subtle visual grouping with minimal distraction from main grid
+- [x] **Comprehensive UI Color Testing** - 12 tests covering all subtle UI color functionality
+- [x] **Metronome Feature** - Audible metronome with accent beats on steps 1, 5, 9, 13
+- [x] **Metronome Toggle Control** - UI button and API for enabling/disabling metronome during playback
+- [x] **Professional Metronome Sounds** - Procedurally generated high-quality click sounds with different accent tones
+- [x] **Metronome Volume Control** - Independent volume adjustment separate from track volumes
+- [x] **Comprehensive Metronome Testing** - 12 tests covering all metronome functionality
+- [x] **Improved Metronome Volume Controls** - Separate volume sliders for normal and accent clicks
+- [x] **Enhanced Clock-Tick Sounds** - Realistic mechanical clock tick sounds with harmonics and noise
+- [x] **Metronome UI Integration** - Volume sliders positioned with other audio controls
+- [x] **Comprehensive Improved Metronome Testing** - 14 tests covering enhanced metronome functionality
+- [x] **Sequence Grid Visual Grouping** - 4-group background color system for enhanced pattern readability
+- [x] **Alternating Group Backgrounds** - Groups 1&3 (steps 1-4, 9-12) with dark grey, groups 2&4 (steps 5-8, 13-16) with darker grey
+- [x] **Enhanced Musical Workflow** - Improved visual organization aids in pattern creation and editing
+- [x] **Comprehensive Grouping Testing** - 12 tests covering all sequence grouping functionality
+- [x] **UI Border Enhancements** - Minimal borders on all slider controls for improved visual definition
+- [x] **Button Background and Borders** - Matching border and fill colors for consistent button styling
+- [x] **Enhanced Visual Clarity** - 1-pixel minimal borders throughout interface for clean aesthetic
+- [x] **Comprehensive Border Testing** - 15 tests covering all UI border enhancement functionality
+
+### Bugs ✅ All Completed
 - [x] Play start doesnt generate sound for first step in sequence
 - [x] Prioritise playback sound
 - [x] CPU clock-based timing system
@@ -347,9 +416,6 @@ midi-drum-sequencer/
 - [x] Timing drift over long playback sessions
 - [x] Visual feedback triggers before sound
 - [x] Sound system and sounds loading should be initialised before playback starts
-
-### Bugs Low Priority
-- [ ] Overlapping labels
 
 ## Licence
 Project is covered by the latest GPL

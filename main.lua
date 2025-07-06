@@ -100,7 +100,24 @@ end
 -- Love2D key press callback
 -- @param key: Key that was pressed
 function love.keypressed(key)
+    if app.state == "main" then
+        -- Let UI handle key input first (for text input)
+        app.ui:keypressed(key)
+    end
+    
+    -- Global key handling
     if key == "escape" then
-        love.event.quit()
+        -- If text input is active, let UI handle escape first
+        if not app.ui.bpmTextInputActive then
+            love.event.quit()
+        end
+    end
+end
+
+-- Love2D text input callback
+-- @param text: Text character that was typed
+function love.textinput(text)
+    if app.state == "main" then
+        app.ui:textinput(text)
     end
 end

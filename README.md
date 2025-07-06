@@ -12,11 +12,13 @@ A Windows-based drum pattern sequencer built with Lua and LÖVE 2D framework. Cr
 - ✅ Interactive pattern editing with mouse
 - ✅ Real-time pattern playback with accurate timing
 - ✅ Visual playback indicator (yellow border on current step)
-- ✅ Transport controls (Play/Stop/Reset/Export)
-- ✅ Adjustable BPM control (60-300 BPM)
-  - Interactive slider for smooth adjustment
-  - +/- buttons for precise control
+- ✅ Transport controls (Play/Stop/Reset/Clear/Export)
+- ✅ **Comprehensive BPM control system (60-300 BPM)**
+  - Interactive slider for smooth drag adjustment
+  - +/- buttons for precise 5-BPM increments
+  - **Text input field for direct BPM entry**
   - Real-time BPM updates during playback
+  - Input validation with automatic range clamping
 - ✅ **Real-time audio preview** with procedurally generated drum samples
   - Kick, snare, hi-hats, crash, ride, and tom sounds
   - Automatic fallback sample generation when audio files unavailable
@@ -25,6 +27,7 @@ A Windows-based drum pattern sequencer built with Lua and LÖVE 2D framework. Cr
   - Interactive volume sliders for each track
   - Real-time volume adjustment
   - Visual volume percentage display
+  - **Reset Volumes button** to restore all tracks to 70% level
 - ✅ **Visual audio feedback**
   - Grid cells light up when sounds are triggered
   - Track label clicking for sound preview
@@ -36,7 +39,42 @@ A Windows-based drum pattern sequencer built with Lua and LÖVE 2D framework. Cr
   - Compatible with all major DAWs
 - ✅ Track labels for different drum sounds
 - ✅ Hover effects for better user experience
-- ✅ Pattern clearing functionality
+- ✅ **Pattern clearing functionality**
+  - Dedicated Clear button in transport controls
+  - Instantly empties entire pattern grid
+  - Does not affect playback state or BPM settings
+- ✅ **Reorganized UI layout for better UX**
+  - Logical grouping of related controls (BPM, Transport, Volume)
+  - Eliminated overlapping interface elements
+  - Improved spacing and accessibility
+  - Organized into clear visual hierarchy
+- ✅ **Colorful track-based UI design**
+  - 8 distinct track colors using 16 Xterm color palette
+  - Track-specific color coding for easy identification
+  - Dynamic brightness based on playback state
+  - Enhanced visual feedback during pattern playback
+- ✅ **Subtle UI theming**
+  - Professional dark theme with blue-gray accent tones
+  - Subtle color palette that complements track colors
+  - Enhanced visual hierarchy with thoughtful text color gradients
+  - Improved button states and interactive element feedback
+- ✅ **Metronome functionality**
+  - Audible metronome clicks during pattern playback
+  - Accent beats on steps 1, 5, 9, and 13 for musical emphasis
+  - Toggle on/off functionality accessible during playback
+  - **Separate volume controls for normal and accent clicks**
+  - Professional clock-tick sounds generated procedurally
+  - Enhanced clock-tick sounds with harmonic richness and mechanical click characteristics
+- ✅ **Sequence grid visual grouping**
+  - 4-group background color system for enhanced pattern readability
+  - Alternating backgrounds: Groups 1&3 (steps 1-4, 9-12) with dark grey
+  - Groups 2&4 (steps 5-8, 13-16) with even darker grey for visual contrast
+  - Improved musical phrase recognition and editing workflow
+- ✅ **Enhanced UI with minimal borders**
+  - Minimal borders on all slider controls for improved definition
+  - Button backgrounds with matching border and fill colors
+  - Consistent 1-pixel border styling throughout interface
+  - Enhanced visual clarity while maintaining clean aesthetic
 - ✅ Timing-accurate step sequencing
 
 ### Future Features (Phase 5-6)
@@ -50,9 +88,10 @@ A Windows-based drum pattern sequencer built with Lua and LÖVE 2D framework. Cr
 
 ## Requirements
 
-- Windows 10/11
+- Windows 10/11 (or other OS supported by LÖVE)
 - LÖVE 11.4 (included in the project)
 - Lua 5.1+ (for running tests)
+- **Screen Resolution**: Minimum 900x650 pixels for optimal UI layout
 
 ## Installation
 
@@ -84,25 +123,38 @@ love .
 - **Play Button**: Start pattern playback with audio
 - **Stop Button**: Stop playback
 - **Reset Button**: Stop and return to beginning
+- **Clear Button**: Clear all pattern steps (empty the grid)
 - **Export Button**: Export pattern as MIDI file (.mid)
+- **Metro Button**: Toggle metronome on/off (remains in sync during playback)
 - **Track Labels**: Click to preview individual drum sounds
 - **BPM Slider**: Drag to adjust tempo (60-300 BPM)
 - **BPM +/- Buttons**: Fine-tune BPM in steps of 5
+- **BPM Text Input**: Click the text field below the slider to type BPM directly
+  - Press Enter (main or numpad) to apply, Escape to cancel
+  - Click elsewhere to apply and lose focus
+  - Automatically validates and clamps to 60-300 range
 - **Volume Sliders**: Adjust individual track volumes (0-100%)
+- **Reset Vol Button**: Reset all track volumes to 70% (default level)
+- **Metronome Volume Sliders**: Separate volume controls for normal and accent metronome clicks
 - **Escape Key**: Exit application
 
-### Track Layout
+### Track Layout and Color Coding
 
-The sequencer includes 8 tracks mapped to common drum sounds:
+The sequencer includes 8 tracks mapped to common drum sounds, each with a distinct color:
 
-1. **Kick** - Bass drum
-2. **Snare** - Snare drum
-3. **Hi-Hat C** - Closed hi-hat
-4. **Hi-Hat O** - Open hi-hat
-5. **Crash** - Crash cymbal
-6. **Ride** - Ride cymbal
-7. **Tom Low** - Low tom
-8. **Tom High** - High tom
+1. **Kick** - Bass drum (🔴 **Red**)
+2. **Snare** - Snare drum (🟡 **Yellow**)
+3. **Hi-Hat C** - Closed hi-hat (🔵 **Cyan**)
+4. **Hi-Hat O** - Open hi-hat (🟢 **Green**)
+5. **Crash** - Crash cymbal (🟣 **Magenta**)
+6. **Ride** - Ride cymbal (🔵 **Blue**)
+7. **Tom Low** - Low tom (🔴 **Dark Red**)
+8. **Tom High** - High tom (🟡 **Dark Yellow**)
+
+#### Color States:
+- **Dimmed (40%)**: Inactive pattern steps
+- **Normal (70%)**: Active pattern steps  
+- **Bright (100%)**: Currently playing steps with audio feedback
 
 ## Development
 
@@ -143,9 +195,9 @@ test.bat
 lua tests/test_sequencer.lua
 ```
 
-#### Test Suite Overview (December 2024)
-- **Total Coverage**: 96 tests across 12 test suites
-- **Pass Rate**: 100% (96/96 tests passing)
+#### Test Suite Overview (July 2025)
+- **Total Coverage**: 247 tests across 24 test suites
+- **Pass Rate**: 100% (247/247 tests passing)
 - **Test Categories**:
   - ✅ Core Sequencer Logic (7 tests)
   - ✅ Utility Functions (2 tests) 
@@ -160,6 +212,18 @@ lua tests/test_sequencer.lua
   - ✅ Clock-Based Timing (10 tests)
   - ✅ Audio Timing Improvements (9 tests)
   - ✅ Sequencer Audio Integration (10 tests)
+  - ✅ BPM Text Input Feature (19 tests)
+  - ✅ BPM Slider Synchronization (11 tests)
+  - ✅ Real Application Flow (5 tests)
+  - ✅ Clear Pattern Functionality (12 tests)
+  - ✅ Reset Volumes Functionality (12 tests)
+  - ✅ UI Reorganization and Layout (12 tests)
+  - ✅ Track Colors and Visual Design (12 tests)
+  - ✅ Subtle UI Color System (12 tests)
+  - ✅ Metronome Functionality (12 tests)
+  - ✅ Improved Metronome Volume Controls (14 tests)
+  - ✅ Sequence Grid Visual Grouping (12 tests)
+  - ✅ UI Border Enhancements (15 tests)
 
 #### Advanced Test Features
 - **Mock Timer System**: Controlled time simulation for clock-based timing tests
@@ -269,6 +333,26 @@ The project is being developed in phases:
   - Automatic source cleanup prevents memory leaks
   - Love2D compatibility checks for headless testing
 - **Test Coverage**: 19 comprehensive tests across 2 new test suites validating all improvements
+
+#### Fixed: BPM Slider Synchronization Issue (December 2024)
+- **Issue**: BPM slider handle position did not update when BPM was changed via text input, especially when clicking elsewhere to lose focus
+- **Root Cause**: Text input changes were only applied when pressing Enter, not when focus was lost by clicking elsewhere
+- **Critical Discovery**: When users typed a BPM value and clicked outside the text field (normal UI behavior), the value was discarded without being applied
+- **Solution**: Enhanced focus loss handling and state management:
+  - **Focus Loss Application**: Automatically apply BPM changes when clicking outside text input field
+  - **State Management**: Proper cleanup of `bpmDragging` flag during text input operations
+  - **Dual Input Methods**: Support both Enter key and focus loss for applying BPM changes
+- **Technical Implementation**:
+  - Modified mouse click handler to apply text input before deactivating on focus loss
+  - Added `self.bpmDragging = false` in text input activation and application
+  - Enhanced `applyBPMTextInput()` with comprehensive state cleanup
+  - Improved color state management in text input drawing
+- **Comprehensive Testing**: 16 new test cases across 2 test suites:
+  - Complete user workflow simulation (click, type, Enter/focus loss)
+  - Slider handle position calculation across full BPM range (60-300)
+  - Focus loss behavior with both empty and filled input buffers
+  - Edge cases with conflicting UI states (dragging + text input)
+  - Real application flow validation with Love2D lifecycle simulation
 
 ## Technical Details
 

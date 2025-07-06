@@ -6,7 +6,8 @@
       "Bash(mkdir:*)",
       "Bash(lua:*)",
       "Bash(rm:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

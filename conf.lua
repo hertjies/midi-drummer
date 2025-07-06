@@ -30,10 +30,10 @@ function love.conf(t)
     -- Enable console output on Windows
     t.console = true
 
-    -- Window settings
+    -- Window settings - updated for reorganized UI layout
     t.window.title = "MIDI Drum Sequencer"  -- Window title
-    t.window.width = 800                     -- Window width in pixels
-    t.window.height = 600                    -- Window height in pixels
+    t.window.width = 900                     -- Window width in pixels (increased for better layout)
+    t.window.height = 650                    -- Window height in pixels (increased for better spacing)
     t.window.resizable = false               -- Fixed window size
     t.window.vsync = 1                       -- Enable vertical sync
 
