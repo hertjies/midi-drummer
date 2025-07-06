@@ -1,0 +1,34 @@
+Refering to the implementation plan. Lets start with the next phase now.
+Do the following:
+1. Do the tasks to produce the Deliverables.
+2. Add comments to the new code
+3. Write test for the new code
+4. Update the README.md
+5. Run all tests to see if they all pass
+
+Go ahead and execute Phase #
+
+
+
+Refering to the implementation plan. Lets fix the some bugs.
+While we fix the bugs, keep in mind to also do the following:
+1. Add comments to the new code
+2. Write test for the new code
+3. Update the README.md
+4. Run all tests to see if they all pass
+
+Here is a description of the bug:
+
+
+
+Refering to the implementation plan. Lets add some features and improvements.
+While we make these changes, keep in mind to also do the following:
+1. Add comments to the new code
+2. Write test for the new code
+3. Update the README.md
+4. Update the implementation plan
+5. Run all tests to see if they all pass
+
+Here is a description of the improvement:
+
+

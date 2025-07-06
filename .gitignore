@@ -1,0 +1,102 @@
+# MIDI Drum Sequencer - .gitignore
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Windows
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# Lua compiled files
+*.luac
+
+# LÖVE 2D build files
+*.love
+*.exe
+*.app
+*.dmg
+*.deb
+*.rpm
+*.tar.gz
+
+# Generated/temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.swp
+*.swo
+*~
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.vim
+.nvim/
+
+# Test output and coverage
+coverage/
+*.coverage
+luacov.*.out
+luacov.report.out
+
+# Runtime generated files
+*.pid
+*.seed
+*.pid.lock
+
+# Audio samples (if large)
+# Uncomment if audio files are too large for repository
+# assets/samples/*.wav
+# assets/samples/*.mp3
+# assets/samples/*.ogg
+
+# Exported MIDI files (generated during runtime)
+*.mid
+exports/
+output/
+
+# Temporary build directories
+build/
+dist/
+release/
+
+# Package manager directories
+node_modules/
+.npm/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+secrets.lua
+config.local.lua
+
+# Documentation build files
+docs/_build/
+docs/build/
+
+# Backup files
+*.orig
+*.backup
+
+# Love2D specific
+conf.lua.bak
+game.love
+
+# Development tools
+.luacheckrc.local
+stylua.toml.local
