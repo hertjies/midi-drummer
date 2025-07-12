@@ -37,6 +37,17 @@ local sequencer = {
 -- Initialize the sequencer
 -- Creates an empty 8x16 pattern matrix and resets timing state
 function sequencer:init()
+    -- Initialize pattern manager for save/load functionality
+    -- Use proper module path for Love2D to find the pattern_manager module
+    local success, pattern_manager = pcall(require, "src.pattern_manager")
+    if success then
+        self.patternManager = pattern_manager
+        self.patternManager:init()
+    else
+        print("Warning: Could not load pattern manager:", pattern_manager)
+        self.patternManager = nil
+    end
+    
     -- Create 8 tracks (drums)
     for track = 1, 8 do
         self.pattern[track] = {}
@@ -403,6 +414,98 @@ function sequencer:getMetronomeVolume(clickType)
         return self.audio:getMetronomeVolume(clickType)
     end
     return 0.6  -- Default fallback
+end
+
+-- Save current pattern to file
+-- Creates a pattern file with complete sequencer state including:
+-- - Pattern data (8x16 boolean matrix)
+-- - BPM setting
+-- - Track volumes
+-- - Metronome settings
+-- @param filename: Name for the pattern file (without extension)
+-- @return: Success flag and error message if any
+function sequencer:savePattern(filename)
+    if not self.patternManager then
+        return false, "Pattern manager not initialized"
+    end
+    
+    -- Create pattern data from current state
+    local pattern_data = self.patternManager:createPatternData(self, self.audio)
+    pattern_data.name = filename
+    
+    -- Save to file
+    return self.patternManager:savePattern(pattern_data, filename)
+end
+
+-- Load pattern from file
+-- Restores complete sequencer state from pattern file including:
+-- - Pattern data (8x16 boolean matrix)
+-- - BPM setting
+-- - Track volumes
+-- - Metronome settings
+-- @param filename: Name of the pattern file (without extension)
+-- @return: Success flag and error message if any
+function sequencer:loadPattern(filename)
+    if not self.patternManager then
+        return false, "Pattern manager not initialized"
+    end
+    
+    -- Load pattern data from file
+    local pattern_data, error_msg = self.patternManager:loadPattern(filename)
+    if not pattern_data then
+        return false, error_msg
+    end
+    
+    -- Stop playback before loading new pattern
+    local was_playing = self.isPlaying
+    if was_playing then
+        self:stop()
+    end
+    
+    -- Apply pattern data to sequencer and audio
+    local success, apply_error = self.patternManager:applyPatternData(pattern_data, self, self.audio)
+    if not success then
+        return false, apply_error
+    end
+    
+    -- Resume playback if it was playing before
+    if was_playing then
+        self:play()
+    end
+    
+    return true, nil
+end
+
+-- Get list of available pattern files
+-- @return: Array of pattern filenames (without extension)
+function sequencer:getPatternList()
+    if not self.patternManager then
+        return {}
+    end
+    
+    return self.patternManager:getPatternList()
+end
+
+-- Delete pattern file
+-- @param filename: Name of the pattern file (without extension)
+-- @return: Success flag and error message if any
+function sequencer:deletePattern(filename)
+    if not self.patternManager then
+        return false, "Pattern manager not initialized"
+    end
+    
+    return self.patternManager:deletePattern(filename)
+end
+
+-- Validate pattern filename
+-- @param filename: Filename to validate
+-- @return: True if valid, false otherwise
+function sequencer:validatePatternFilename(filename)
+    if not self.patternManager then
+        return false
+    end
+    
+    return self.patternManager:validateFilename(filename)
 end
 
 return sequencer

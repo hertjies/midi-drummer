@@ -111,7 +111,7 @@ function TestMetronome:testMetronomeInitialization()
     
     -- Test default state
     luaunit.assertFalse(audio.metronomeEnabled, "Metronome should be disabled by default")
-    luaunit.assertEquals(audio.metronomeVolume, 0.6, "Default metronome volume should be 0.6")
+    luaunit.assertEquals(audio.metronomeVolumes.normal, 0.6, "Default metronome volume should be 0.6")
 end
 
 function TestMetronome:testMetronomeToggle()
@@ -140,22 +140,22 @@ end
 
 function TestMetronome:testMetronomeVolumeControl()
     -- Test volume setting and getting
-    audio:setMetronomeVolume(0.8)
-    luaunit.assertEquals(audio:getMetronomeVolume(), 0.8, "Volume should be set to 0.8")
+    audio:setMetronomeVolume("normal", 0.8)
+    luaunit.assertEquals(audio:getMetronomeVolume("normal"), 0.8, "Volume should be set to 0.8")
     
     -- Test volume clamping
-    audio:setMetronomeVolume(1.5)
-    luaunit.assertEquals(audio:getMetronomeVolume(), 1.0, "Volume should be clamped to 1.0")
+    audio:setMetronomeVolume("normal", 1.5)
+    luaunit.assertEquals(audio:getMetronomeVolume("normal"), 1.0, "Volume should be clamped to 1.0")
     
-    audio:setMetronomeVolume(-0.5)
-    luaunit.assertEquals(audio:getMetronomeVolume(), 0.0, "Volume should be clamped to 0.0")
+    audio:setMetronomeVolume("normal", -0.5)
+    luaunit.assertEquals(audio:getMetronomeVolume("normal"), 0.0, "Volume should be clamped to 0.0")
     
     -- Test edge cases
-    audio:setMetronomeVolume(0.0)
-    luaunit.assertEquals(audio:getMetronomeVolume(), 0.0, "Volume should be exactly 0.0")
+    audio:setMetronomeVolume("normal", 0.0)
+    luaunit.assertEquals(audio:getMetronomeVolume("normal"), 0.0, "Volume should be exactly 0.0")
     
-    audio:setMetronomeVolume(1.0)
-    luaunit.assertEquals(audio:getMetronomeVolume(), 1.0, "Volume should be exactly 1.0")
+    audio:setMetronomeVolume("normal", 1.0)
+    luaunit.assertEquals(audio:getMetronomeVolume("normal"), 1.0, "Volume should be exactly 1.0")
 end
 
 function TestMetronome:testAccentBeatDetection()
@@ -206,8 +206,8 @@ function TestMetronome:testSequencerMetronomeIntegration()
     luaunit.assertTrue(result, "Sequencer should toggle metronome on")
     
     -- Test volume control through sequencer
-    sequencer:setMetronomeVolume(0.9)
-    luaunit.assertEquals(sequencer:getMetronomeVolume(), 0.9, "Sequencer should set metronome volume")
+    sequencer:setMetronomeVolume("normal", 0.9)
+    luaunit.assertEquals(sequencer:getMetronomeVolume("normal"), 0.9, "Sequencer should set metronome volume")
 end
 
 function TestMetronome:testMetronomeWithoutAudioSystem()
@@ -246,19 +246,19 @@ function TestMetronome:testMetronomeStateConsistency()
     -- Test that metronome state remains consistent across operations
     
     audio:setMetronomeEnabled(true)
-    audio:setMetronomeVolume(0.75)
+    audio:setMetronomeVolume("normal", 0.75)
     
     -- State should persist through playback operations
     for step = 1, 16 do
         audio:playMetronome(step)
         luaunit.assertTrue(audio:isMetronomeEnabled(), "Metronome should remain enabled during playback")
-        luaunit.assertEquals(audio:getMetronomeVolume(), 0.75, "Volume should remain consistent")
+        luaunit.assertEquals(audio:getMetronomeVolume("normal"), 0.75, "Volume should remain consistent")
     end
     
     -- State should persist through other audio operations
     audio:playSample(1)  -- Play a drum sound
     luaunit.assertTrue(audio:isMetronomeEnabled(), "Metronome should remain enabled after playing drum sample")
-    luaunit.assertEquals(audio:getMetronomeVolume(), 0.75, "Volume should remain consistent after playing drum sample")
+    luaunit.assertEquals(audio:getMetronomeVolume("normal"), 0.75, "Volume should remain consistent after playing drum sample")
 end
 
 function TestMetronome:testMetronomeSourceManagement()

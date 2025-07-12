@@ -97,6 +97,14 @@ function love.mousemoved(x, y)
     end
 end
 
+-- Love2D mouse wheel callback
+-- @param x, y: Mouse wheel movement
+function love.wheelmoved(x, y)
+    if app.state == "main" then
+        app.ui:wheelmoved(x, y)
+    end
+end
+
 -- Love2D key press callback
 -- @param key: Key that was pressed
 function love.keypressed(key)

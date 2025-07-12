@@ -7,7 +7,9 @@
       "Bash(lua:*)",
       "Bash(rm:*)",
       "Bash(grep:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(git push:*)",
+      "Bash(love:*)"
     ],
     "deny": []
   }

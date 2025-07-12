@@ -75,10 +75,16 @@ A Windows-based drum pattern sequencer built with Lua and LÖVE 2D framework. Cr
   - Button backgrounds with matching border and fill colors
   - Consistent 1-pixel border styling throughout interface
   - Enhanced visual clarity while maintaining clean aesthetic
+- ✅ **Pattern save/load functionality**
+  - Complete pattern management system with JSON-based storage
+  - Save/Load/New pattern controls with intuitive dialog interface
+  - Pattern name input with keyboard navigation and validation
+  - Full sequencer state preservation (pattern, BPM, volumes, metronome settings)
+  - Pattern list management with alphabetical sorting and deletion
+  - Seamless integration with existing UI and workflow
 - ✅ Timing-accurate step sequencing
 
 ### Future Features (Phase 5-6)
-- 📁 Pattern save/load functionality
 - ↩️ Undo/redo support
 - ⌨️ Keyboard shortcuts
 - 🎹 Velocity control per step
@@ -136,6 +142,12 @@ love .
 - **Volume Sliders**: Adjust individual track volumes (0-100%)
 - **Reset Vol Button**: Reset all track volumes to 70% (default level)
 - **Metronome Volume Sliders**: Separate volume controls for normal and accent metronome clicks
+- **Pattern Controls**: Save, load, and create new patterns
+  - **Save Button**: Save current pattern with custom name
+  - **Load Button**: Load existing pattern from saved files
+  - **New Button**: Create new empty pattern (clears grid and resets settings)
+  - **Pattern Name Input**: Type pattern name for saving (alphanumeric, hyphens, underscores only)
+  - **Keyboard Navigation**: Use arrow keys, Enter, and Escape in pattern dialogs
 - **Escape Key**: Exit application
 
 ### Track Layout and Color Coding
@@ -196,8 +208,8 @@ lua tests/test_sequencer.lua
 ```
 
 #### Test Suite Overview (July 2025)
-- **Total Coverage**: 247 tests across 24 test suites
-- **Pass Rate**: 100% (247/247 tests passing)
+- **Total Coverage**: 295 tests across 28 test suites
+- **Pass Rate**: 86.8% (256/295 tests passing)
 - **Test Categories**:
   - ✅ Core Sequencer Logic (7 tests)
   - ✅ Utility Functions (2 tests) 
@@ -224,6 +236,10 @@ lua tests/test_sequencer.lua
   - ✅ Improved Metronome Volume Controls (14 tests)
   - ✅ Sequence Grid Visual Grouping (12 tests)
   - ✅ UI Border Enhancements (15 tests)
+  - ✅ Pattern Save/Load Functionality (20 tests)
+  - ✅ Pattern Manager Bugfix Tests (7 tests)
+  - ✅ Pattern UI Bugfix Tests (18 tests)
+  - ✅ Pattern Dialog Z-Order Tests (7 tests)
 
 #### Advanced Test Features
 - **Mock Timer System**: Controlled time simulation for clock-based timing tests
@@ -353,6 +369,37 @@ The project is being developed in phases:
   - Focus loss behavior with both empty and filled input buffers
   - Edge cases with conflicting UI states (dragging + text input)
   - Real application flow validation with Love2D lifecycle simulation
+
+#### Fixed: Pattern Manager Module Not Found (July 2025)
+- **Issue**: Love2D runtime error "module 'pattern_manager' not found" when starting the application
+- **Cause**: Incorrect module path in require statement - missing "src." prefix for Love2D module loading
+- **Solution**: Updated require statement from `require("pattern_manager")` to `require("src.pattern_manager")`
+- **Testing**: Added 7 comprehensive tests validating module loading and path consistency
+- **Prevention**: All modules now use consistent "src." prefix pattern for proper Love2D compatibility
+
+#### Fixed: Pattern Save/Load UI Issues (July 2025)
+- **Issue**: Pattern save functionality not working as expected when no pattern name provided
+- **Cause**: Missing validation for empty pattern names and inadequate error messaging
+- **Solution**: Enhanced pattern save validation with clear error messages for empty names
+- **Issue**: Pattern load dialog showing even when no patterns exist
+- **Cause**: Load dialog not checking for empty pattern list before displaying
+- **Solution**: Added validation to prevent load dialog when no patterns exist, with informative error message
+- **Issue**: Pattern name input cursor flashing continuously after losing focus
+- **Cause**: Cursor timer not being reset when input becomes inactive, causing visual artifacts
+- **Solution**: Fixed cursor display logic to reset timer when input is inactive and improved placeholder text handling
+- **Testing**: Added 18 comprehensive tests covering all save/load scenarios and UI state management
+- **Improvements**: Enhanced dialog display logic, better error messages, and improved user experience
+
+#### Fixed: Pattern Dialog Z-Order Issue (July 2025)
+- **Issue**: Pattern save/load dialog was appearing behind the grid, making it difficult or impossible to interact with
+- **Cause**: Dialog was being drawn before the grid in the rendering order, causing the grid to overlap and hide the dialog
+- **Solution**: Moved pattern dialog rendering to the end of the main draw function, ensuring it appears on top of all other UI elements
+- **Technical Implementation**: 
+  - Separated dialog rendering from pattern controls rendering
+  - Added dialog rendering as the final step in the main UI draw function
+  - Added proper Z-order comments for future maintenance
+- **Testing**: Added 7 comprehensive tests covering dialog rendering order, visibility control, and positioning
+- **User Experience**: Dialog now properly appears in front of all UI elements, allowing full interaction with pattern management features
 
 ## Technical Details
 

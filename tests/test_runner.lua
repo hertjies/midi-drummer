@@ -51,6 +51,10 @@ local test_metronome = require("test_metronome")
 local test_improved_metronome = require("test_improved_metronome")
 local test_sequence_grouping = require("test_sequence_grouping")
 local test_ui_border_enhancements = require("test_ui_border_enhancements")
+local test_pattern_save_load = require("test_pattern_save_load")
+local test_pattern_manager_bugfix = require("test_pattern_manager_bugfix")
+local test_pattern_ui_bugfixes = require("test_pattern_ui_bugfixes")
+local test_pattern_dialog_z_order = require("test_pattern_dialog_z_order")
 
 -- Run all tests
 print("=== MIDI Drum Sequencer Test Suite ===")
@@ -132,6 +136,18 @@ allPassed = luaunit.run(test_sequence_grouping) and allPassed
 
 print("\nRunning UI Border Enhancement Tests...")
 allPassed = luaunit.run(test_ui_border_enhancements) and allPassed
+
+print("\nRunning Pattern Save/Load Tests...")
+allPassed = luaunit.run(test_pattern_save_load) and allPassed
+
+print("\nRunning Pattern Manager Bugfix Tests...")
+allPassed = luaunit.run(test_pattern_manager_bugfix) and allPassed
+
+print("\nRunning Pattern UI Bugfix Tests...")
+allPassed = luaunit.run(test_pattern_ui_bugfixes) and allPassed
+
+print("\nRunning Pattern Dialog Z-Order Tests...")
+allPassed = luaunit.run(test_pattern_dialog_z_order) and allPassed
 
 print("\n=== Test Summary ===")
 if allPassed then

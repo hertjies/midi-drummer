@@ -146,7 +146,8 @@ function TestUIPhase4:testExportButtonClick()
     local playX = 200
     local stopX = playX + ui.buttonWidth + 10
     local resetX = stopX + ui.buttonWidth + 10
-    local exportX = resetX + ui.buttonWidth + 10
+    local clearX = resetX + ui.buttonWidth + 10
+    local exportX = clearX + ui.buttonWidth + 10
     
     -- Click on export button
     ui:mousepressed(exportX + 20, ui.transportY + 10)
@@ -217,7 +218,8 @@ function TestUIPhase4:testExportButtonHitDetection()
     local playX = 200
     local stopX = playX + ui.buttonWidth + 10
     local resetX = stopX + ui.buttonWidth + 10
-    local exportX = resetX + ui.buttonWidth + 10
+    local clearX = resetX + ui.buttonWidth + 10
+    local exportX = clearX + ui.buttonWidth + 10
     
     -- Click just inside export button
     ui.clickedButton = nil
@@ -278,7 +280,7 @@ end
 
 function TestUIPhase4:testExportButtonStateReset()
     -- Test that button state is reset after click
-    local exportX = 200 + 3 * (ui.buttonWidth + 10)
+    local exportX = 200 + 4 * (ui.buttonWidth + 10)
     
     ui:mousepressed(exportX + 20, ui.transportY + 10)
     luaunit.assertEquals(ui.clickedButton, "EXPORT")

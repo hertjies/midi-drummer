@@ -24,12 +24,13 @@ local ui = {
     -- Layout organization - reorganized for better UX and no overlaps
     -- ROW 1: BPM Controls (Y=20)
     -- ROW 2: Transport Controls (Y=60) 
-    -- ROW 3: Grid Headers (Y=105)
-    -- ROW 4: Main Grid + Volume Controls (Y=120+)
+    -- ROW 2.5: Pattern Controls (Y=95)
+    -- ROW 3: Grid Headers (Y=130)
+    -- ROW 4: Main Grid + Volume Controls (Y=145+)
     
     -- Grid positioning and sizing
     gridX = 50,         -- Grid left position
-    gridY = 120,        -- Grid top position (moved down to avoid overlaps)
+    gridY = 145,        -- Grid top position (moved down for pattern controls)
     cellSize = 32,      -- Size of each grid cell in pixels
     cellPadding = 2,    -- Space between cells
     
@@ -37,6 +38,11 @@ local ui = {
     transportY = 60,    -- Y position for transport buttons (moved down)
     buttonWidth = 80,   -- Width of transport buttons
     buttonHeight = 30,  -- Height of transport buttons
+    
+    -- Pattern control positioning (ROW 2.5)
+    patternControlsY = 95,      -- Y position for pattern save/load controls
+    patternButtonWidth = 60,    -- Width of pattern control buttons (smaller)
+    patternButtonHeight = 25,   -- Height of pattern control buttons (smaller)
     
     -- BPM control positioning (ROW 1 - dedicated space)
     bpmControlsY = 20,      -- Y position for BPM controls group
@@ -70,6 +76,21 @@ local ui = {
     -- UI state
     hoveredCell = nil,      -- Currently hovered grid cell {track, step}
     clickedButton = nil,    -- Currently pressed button name
+    
+    -- Pattern management UI state
+    patternNameInput = "",           -- Current pattern name being typed
+    patternNameInputActive = false,  -- Whether pattern name input is focused
+    patternNameInputCursorTimer = 0, -- Timer for blinking cursor in pattern name input
+    patternList = {},               -- List of available patterns
+    patternListVisible = false,     -- Whether pattern selection list is visible
+    selectedPatternIndex = 1,       -- Currently selected pattern in the list
+    patternDialogMode = "none",     -- "save", "load", or "none"
+    
+    -- Help dialog UI state
+    helpVisible = false,            -- Whether help dialog is visible
+    helpScrollY = 0,                -- Vertical scroll position in help dialog
+    helpScrollDragging = false,     -- Whether user is dragging the scroll bar
+    helpScrollDragOffset = 0,       -- Offset from mouse to scroll thumb top when dragging
     
     -- Volume control positioning (right side of grid)
     volumeSliderWidth = 80, -- Width of volume sliders
@@ -251,10 +272,22 @@ function ui:draw()
     self:drawUIPanels()
     
     self:drawTransportControls()  -- Play/Stop/Reset buttons
+    self:drawPatternControls()   -- Pattern save/load controls (without dialog)
     self:drawGrid()              -- Pattern grid
     self:drawBPMControl()        -- BPM display and slider
     self:drawBPMTextInput()      -- BPM text input field
     self:drawVolumeControls()    -- Volume sliders
+    
+    -- Draw pattern selection dialog last so it appears on top of everything else
+    -- This ensures the dialog is not hidden behind the grid or other UI elements
+    if self.patternListVisible then
+        self:drawPatternSelectionDialog()
+    end
+    
+    -- Draw help dialog last to ensure it's on top
+    if self.helpVisible then
+        self:drawHelpDialog()
+    end
 end
 
 -- Draw UI panels (backgrounds and borders removed for cleaner UI)
@@ -384,6 +417,7 @@ function ui:drawTransportControls()
     local clearX = resetX + self.buttonWidth + 10
     local exportX = clearX + self.buttonWidth + 10
     local metronomeX = exportX + self.buttonWidth + 10
+    local helpX = metronomeX + self.buttonWidth + 10
     
     -- Get metronome state for button display
     local metronomeEnabled = self.sequencer and self.sequencer:isMetronomeEnabled() or false
@@ -395,6 +429,145 @@ function ui:drawTransportControls()
     self:drawButton("CLEAR", clearX, self.transportY, self.buttonWidth, self.buttonHeight, false)
     self:drawButton("EXPORT", exportX, self.transportY, self.buttonWidth, self.buttonHeight, false)
     self:drawButton("METRO", metronomeX, self.transportY, self.buttonWidth, self.buttonHeight, metronomeEnabled)
+    self:drawButton("HELP", helpX, self.transportY, self.buttonWidth, self.buttonHeight, self.helpVisible)
+end
+
+-- Draw pattern save/load controls
+-- Renders pattern management interface with save/load buttons and pattern name input
+function ui:drawPatternControls()
+    if not self.sequencer then return end
+    
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.setFont(love.graphics.newFont(12))
+    
+    -- Calculate button positions (smaller buttons for pattern controls)
+    local saveX = 200
+    local loadX = saveX + self.patternButtonWidth + 10
+    local newX = loadX + self.patternButtonWidth + 10
+    local nameInputX = newX + self.patternButtonWidth + 20
+    local nameInputWidth = 150
+    local nameInputHeight = self.patternButtonHeight
+    
+    -- Draw section label
+    self:setUIColor("textAccent")
+    love.graphics.print("Patterns:", 200 - 60, self.patternControlsY + 3)
+    
+    -- Draw pattern control buttons
+    self:drawButton("SAVE", saveX, self.patternControlsY, self.patternButtonWidth, self.patternButtonHeight, false)
+    self:drawButton("LOAD", loadX, self.patternControlsY, self.patternButtonWidth, self.patternButtonHeight, false)
+    self:drawButton("NEW", newX, self.patternControlsY, self.patternButtonWidth, self.patternButtonHeight, false)
+    
+    -- Draw pattern name input field
+    self:drawPatternNameInput(nameInputX, self.patternControlsY, nameInputWidth, nameInputHeight)
+end
+
+-- Draw pattern name input field
+-- @param x, y: Input field position
+-- @param width, height: Input field dimensions
+function ui:drawPatternNameInput(x, y, width, height)
+    -- Draw input field border (minimal styling)
+    self:setUIColor("border")
+    love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", x, y, width, height)
+    
+    -- Determine display text and cursor state
+    local displayText = self.patternNameInput
+    local showCursor = false
+    
+    if self.patternNameInputActive then
+        -- Add blinking cursor when active - fixed cursor flashing logic
+        self.patternNameInputCursorTimer = self.patternNameInputCursorTimer + (love.timer and love.timer.getDelta() or 0.016)
+        showCursor = math.floor(self.patternNameInputCursorTimer * 2) % 2 == 0
+        if showCursor then
+            displayText = displayText .. "|"
+        end
+    else
+        -- Reset cursor timer when not active to prevent residual flashing
+        self.patternNameInputCursorTimer = 0
+    end
+    
+    -- Display placeholder text if input is empty (fixed logic to prevent cursor artifacts)
+    if self.patternNameInput == "" then
+        self:setUIColor("textSecondary")
+        displayText = "pattern name"
+    else
+        self:setUIColor("textPrimary")
+    end
+    
+    -- Draw text content with padding
+    love.graphics.setFont(love.graphics.newFont(10))
+    local textY = y + (height - love.graphics.getFont():getHeight()) / 2
+    love.graphics.print(displayText, x + 5, textY)
+end
+
+-- Draw pattern selection dialog
+-- Shows list of available patterns for loading or saving
+function ui:drawPatternSelectionDialog()
+    if not self.sequencer then return end
+    
+    -- For save mode, always show dialog even if no patterns exist
+    -- For load mode, only show if patterns exist
+    if self.patternDialogMode == "load" and #self.patternList == 0 then
+        return
+    end
+    
+    -- Dialog dimensions and position
+    local dialogWidth = 300
+    local dialogHeight = math.min(200, #self.patternList * 25 + 60)
+    local dialogX = (love.graphics.getWidth() - dialogWidth) / 2
+    local dialogY = (love.graphics.getHeight() - dialogHeight) / 2
+    
+    -- Draw dialog background
+    self:setUIColor("panelBackground")
+    love.graphics.rectangle("fill", dialogX, dialogY, dialogWidth, dialogHeight)
+    
+    -- Draw dialog border
+    self:setUIColor("border")
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", dialogX, dialogY, dialogWidth, dialogHeight)
+    
+    -- Draw dialog title
+    self:setUIColor("textPrimary")
+    love.graphics.setFont(love.graphics.newFont(14))
+    local titleText = self.patternDialogMode == "save" and "Save Pattern" or "Load Pattern"
+    love.graphics.print(titleText, dialogX + 10, dialogY + 10)
+    
+    -- Draw pattern list or empty message
+    love.graphics.setFont(love.graphics.newFont(12))
+    local listY = dialogY + 35
+    
+    if #self.patternList == 0 then
+        -- Show message when no patterns exist
+        self:setUIColor("textSecondary")
+        local emptyMsg = self.patternDialogMode == "save" and 
+            "No saved patterns. Enter a name above." or 
+            "No saved patterns found."
+        love.graphics.print(emptyMsg, dialogX + 10, listY)
+    else
+        -- Draw pattern list
+        for i, patternName in ipairs(self.patternList) do
+            local itemY = listY + (i - 1) * 25
+            
+            -- Highlight selected item
+            if i == self.selectedPatternIndex then
+                self:setUIColor("buttonActive")
+                love.graphics.rectangle("fill", dialogX + 5, itemY - 2, dialogWidth - 10, 20)
+            end
+            
+            -- Draw pattern name
+            self:setUIColor("textPrimary")
+            love.graphics.print(patternName, dialogX + 10, itemY)
+        end
+    end
+    
+    -- Draw dialog buttons
+    local buttonY = dialogY + dialogHeight - 35
+    local cancelX = dialogX + 10
+    local confirmX = dialogX + dialogWidth - 70
+    
+    self:drawButton("Cancel", cancelX, buttonY, 50, 25, false)
+    local confirmText = self.patternDialogMode == "save" and "Save" or "Load"
+    self:drawButton(confirmText, confirmX, buttonY, 50, 25, false)
 end
 
 -- Draw a single button
@@ -670,6 +843,74 @@ end
 function ui:mousepressed(x, y)
     -- Track if any UI element was clicked
     local uiElementClicked = false
+    
+    -- Check help dialog first (it's on top)
+    if self.helpVisible then
+        local dialogWidth = 700
+        local dialogHeight = 500
+        local dialogX = (love.graphics.getWidth() - dialogWidth) / 2
+        local dialogY = (love.graphics.getHeight() - dialogHeight) / 2
+        
+        -- Check close button (X)
+        local closeX = dialogX + dialogWidth - 35
+        local closeY = dialogY + 5
+        if self.utils.pointInRect(x, y, closeX, closeY, 30, 30) then
+            self.helpVisible = false
+            return  -- Consume the click
+        end
+        
+        -- Check scroll bar clicks
+        local contentX = dialogX + 20
+        local contentY = dialogY + 40
+        local contentWidth = dialogWidth - 60
+        local contentHeight = dialogHeight - 60
+        
+        -- Calculate if scroll bar should be visible
+        local helpSections = self:getHelpContent()
+        local totalContentHeight = 0
+        for _, section in ipairs(helpSections) do
+            if section.title then
+                totalContentHeight = totalContentHeight + 20  -- Title height
+            end
+            if section.content then
+                totalContentHeight = totalContentHeight + (#section.content * 16) + 8  -- Content lines + spacing
+            end
+        end
+        
+        if totalContentHeight > contentHeight then
+            local scrollBarX = dialogX + dialogWidth - 20
+            local scrollBarY = contentY
+            local scrollBarHeight = contentHeight
+            local scrollThumbHeight = math.max(20, scrollBarHeight * (contentHeight / totalContentHeight))
+            local maxScroll = totalContentHeight - contentHeight
+            local scrollThumbY = scrollBarY + ((self.helpScrollY or 0) / maxScroll) * (scrollBarHeight - scrollThumbHeight)
+            
+            -- Check if clicking on scroll bar
+            if self.utils.pointInRect(x, y, scrollBarX, scrollBarY, 15, scrollBarHeight) then
+                -- Check if clicking on thumb specifically
+                if self.utils.pointInRect(x, y, scrollBarX + 2, scrollThumbY, 11, scrollThumbHeight) then
+                    -- Start dragging the scroll thumb
+                    self.helpScrollDragging = true
+                    self.helpScrollDragOffset = y - scrollThumbY
+                    return  -- Consume the click
+                else
+                    -- Click on scroll bar track - jump scroll position
+                    local clickRatio = (y - scrollBarY) / scrollBarHeight
+                    self.helpScrollY = self.utils.clamp(clickRatio * maxScroll, 0, maxScroll)
+                    return  -- Consume the click
+                end
+            end
+        end
+        
+        -- Check if click is within dialog bounds (consume click to prevent interaction with elements behind)
+        if self.utils.pointInRect(x, y, dialogX, dialogY, dialogWidth, dialogHeight) then
+            return  -- Consume the click but don't close dialog
+        else
+            -- Click outside dialog - close it
+            self.helpVisible = false
+            return
+        end
+    end
     -- Check grid clicks
     local cellX = math.floor((x - self.gridX) / (self.cellSize + self.cellPadding)) + 1
     local cellY = math.floor((y - self.gridY) / (self.cellSize + self.cellPadding)) + 1
@@ -693,6 +934,7 @@ function ui:mousepressed(x, y)
     local clearX = resetX + self.buttonWidth + 10
     local exportX = clearX + self.buttonWidth + 10
     local metronomeX = exportX + self.buttonWidth + 10
+    local helpX = metronomeX + self.buttonWidth + 10
     
     if self.utils.pointInRect(x, y, playX, self.transportY, self.buttonWidth, self.buttonHeight) then
         self.clickedButton = "PLAY"
@@ -719,6 +961,17 @@ function ui:mousepressed(x, y)
         -- Toggle metronome state (can be toggled during playback)
         self.sequencer:setMetronomeEnabled(nil)  -- nil means toggle
         uiElementClicked = true
+    elseif self.utils.pointInRect(x, y, helpX, self.transportY, self.buttonWidth, self.buttonHeight) then
+        self.clickedButton = "HELP"
+        -- Toggle help dialog visibility
+        self.helpVisible = not self.helpVisible
+        self.helpScrollY = 0  -- Reset scroll position when opening
+        uiElementClicked = true
+    end
+    
+    -- Check pattern control buttons
+    if not uiElementClicked then
+        uiElementClicked = self:handlePatternControlClicks(x, y) or uiElementClicked
     end
     
     -- Check BPM controls (only if not already handled by transport buttons)
@@ -835,6 +1088,7 @@ function ui:mousereleased(x, y)
     self.bpmDragging = false
     self.volumeDragging = nil
     self.metronomeVolumeDragging = nil
+    self.helpScrollDragging = false
 end
 
 -- Handle mouse movement
@@ -856,6 +1110,11 @@ function ui:mousemoved(x, y)
         self:updateMetronomeVolumeFromMouse(self.metronomeVolumeDragging, x)
     end
     
+    -- Handle help dialog scroll bar dragging
+    if self.helpScrollDragging then
+        self:updateHelpScrollFromMouse(y)
+    end
+    
     -- Calculate grid cell under mouse
     local cellX = math.floor((x - self.gridX) / (self.cellSize + self.cellPadding)) + 1
     local cellY = math.floor((y - self.gridY) / (self.cellSize + self.cellPadding)) + 1
@@ -873,6 +1132,38 @@ function ui:mousemoved(x, y)
         end
     else
         self.hoveredCell = nil
+    end
+end
+
+-- Handle mouse wheel scrolling
+-- @param x, y: Mouse wheel movement (y is typically used for vertical scrolling)
+function ui:wheelmoved(x, y)
+    -- Only handle scrolling when help dialog is visible
+    if self.helpVisible then
+        local scrollAmount = y * 30  -- 30 pixels per wheel step
+        
+        -- Calculate content dimensions for scroll bounds
+        local dialogHeight = 500
+        local contentHeight = dialogHeight - 60  -- Account for title bar
+        local helpSections = self:getHelpContent()
+        
+        -- Estimate total content height
+        local totalContentHeight = 0
+        for _, section in ipairs(helpSections) do
+            if section.title then
+                totalContentHeight = totalContentHeight + 20  -- Title height
+            end
+            if section.content then
+                totalContentHeight = totalContentHeight + (#section.content * 16) + 8  -- Content lines + spacing
+            end
+        end
+        
+        -- Calculate scroll bounds
+        local maxScroll = math.max(0, totalContentHeight - contentHeight)
+        
+        -- Update scroll position with bounds checking
+        self.helpScrollY = self.helpScrollY or 0
+        self.helpScrollY = self.utils.clamp(self.helpScrollY - scrollAmount, 0, maxScroll)
     end
 end
 
@@ -922,6 +1213,52 @@ function ui:updateMetronomeVolumeFromMouse(clickType, mouseX)
     self.sequencer:setMetronomeVolume(clickType, normalized)
 end
 
+-- Update help dialog scroll position based on mouse dragging
+-- @param mouseY: Current mouse Y coordinate
+function ui:updateHelpScrollFromMouse(mouseY)
+    if not self.helpVisible or not self.helpScrollDragging then
+        return
+    end
+    
+    -- Calculate dialog dimensions (same as in drawHelpDialog)
+    local dialogWidth = 700
+    local dialogHeight = 500
+    local dialogX = (love.graphics.getWidth() - dialogWidth) / 2
+    local dialogY = (love.graphics.getHeight() - dialogHeight) / 2
+    local contentY = dialogY + 40
+    local contentHeight = dialogHeight - 60
+    
+    -- Calculate total content height
+    local helpSections = self:getHelpContent()
+    local totalContentHeight = 0
+    for _, section in ipairs(helpSections) do
+        if section.title then
+            totalContentHeight = totalContentHeight + 20  -- Title height
+        end
+        if section.content then
+            totalContentHeight = totalContentHeight + (#section.content * 16) + 8  -- Content lines + spacing
+        end
+    end
+    
+    -- Only scroll if content is larger than container
+    if totalContentHeight > contentHeight then
+        local scrollBarY = contentY
+        local scrollBarHeight = contentHeight
+        local scrollThumbHeight = math.max(20, scrollBarHeight * (contentHeight / totalContentHeight))
+        local maxScroll = totalContentHeight - contentHeight
+        
+        -- Calculate new thumb position based on mouse Y minus drag offset
+        local newThumbY = mouseY - self.helpScrollDragOffset
+        
+        -- Convert thumb position to scroll ratio
+        local thumbRange = scrollBarHeight - scrollThumbHeight
+        local thumbRatio = self.utils.clamp((newThumbY - scrollBarY) / thumbRange, 0, 1)
+        
+        -- Update scroll position
+        self.helpScrollY = thumbRatio * maxScroll
+    end
+end
+
 -- Export current pattern as MIDI file
 -- Creates a timestamped filename and exports the pattern
 function ui:exportMIDI()
@@ -952,37 +1289,81 @@ function ui:exportMIDI()
     end
 end
 
--- Handle keyboard text input for BPM text field
+-- Handle keyboard text input for BPM text field and pattern name input
 -- @param text: Text character that was typed
 function ui:textinput(text)
-    if not self.bpmTextInputActive then return end
-    
-    -- Only allow numeric input (0-9)
-    if text:match("[0-9]") and string.len(self.bpmTextInputBuffer) < 3 then
-        self.bpmTextInputBuffer = self.bpmTextInputBuffer .. text
-        self.bpmTextInputCursorTimer = 0  -- Reset cursor blink
+    if self.bpmTextInputActive then
+        -- Only allow numeric input (0-9) for BPM
+        if text:match("[0-9]") and string.len(self.bpmTextInputBuffer) < 3 then
+            self.bpmTextInputBuffer = self.bpmTextInputBuffer .. text
+            self.bpmTextInputCursorTimer = 0  -- Reset cursor blink
+        end
+    elseif self.patternNameInputActive then
+        -- Allow alphanumeric, hyphens, and underscores for pattern names
+        if text:match("[%w%-_]") and string.len(self.patternNameInput) < 50 then
+            self.patternNameInput = self.patternNameInput .. text
+            self.patternNameInputCursorTimer = 0  -- Reset cursor blink
+        end
     end
 end
 
--- Handle keyboard key press events for BPM text field
+-- Handle keyboard key press events for BPM text field and pattern name input
 -- @param key: Key that was pressed
 function ui:keypressed(key)
-    if not self.bpmTextInputActive then return end
-    
-    if key == "backspace" then
-        -- Remove last character from buffer
-        if string.len(self.bpmTextInputBuffer) > 0 then
-            self.bpmTextInputBuffer = string.sub(self.bpmTextInputBuffer, 1, -2)
-            self.bpmTextInputCursorTimer = 0  -- Reset cursor blink
+    if self.bpmTextInputActive then
+        if key == "backspace" then
+            -- Remove last character from buffer
+            if string.len(self.bpmTextInputBuffer) > 0 then
+                self.bpmTextInputBuffer = string.sub(self.bpmTextInputBuffer, 1, -2)
+                self.bpmTextInputCursorTimer = 0  -- Reset cursor blink
+            end
+        elseif key == "return" or key == "enter" or key == "kpenter" then
+            -- Apply the BPM value and deactivate text input
+            -- Supports both main Enter key and numeric keypad Enter key
+            self:applyBPMTextInput()
+        elseif key == "escape" then
+            -- Cancel text input without applying
+            self.bpmTextInputActive = false
+            self.bpmTextInputBuffer = ""
         end
-    elseif key == "return" or key == "enter" or key == "kpenter" then
-        -- Apply the BPM value and deactivate text input
-        -- Supports both main Enter key and numeric keypad Enter key
-        self:applyBPMTextInput()
-    elseif key == "escape" then
-        -- Cancel text input without applying
-        self.bpmTextInputActive = false
-        self.bpmTextInputBuffer = ""
+    elseif self.patternNameInputActive then
+        if key == "backspace" then
+            -- Remove last character from pattern name
+            if string.len(self.patternNameInput) > 0 then
+                self.patternNameInput = string.sub(self.patternNameInput, 1, -2)
+                self.patternNameInputCursorTimer = 0  -- Reset cursor blink
+            end
+        elseif key == "return" or key == "enter" or key == "kpenter" then
+            -- Deactivate pattern name input
+            self.patternNameInputActive = false
+        elseif key == "escape" then
+            -- Cancel pattern name input
+            self.patternNameInputActive = false
+            self.patternNameInput = ""
+        end
+    elseif self.patternListVisible then
+        -- Handle keyboard navigation in pattern selection dialog
+        if key == "up" then
+            self.selectedPatternIndex = math.max(1, self.selectedPatternIndex - 1)
+        elseif key == "down" then
+            self.selectedPatternIndex = math.min(#self.patternList, self.selectedPatternIndex + 1)
+        elseif key == "return" or key == "enter" or key == "kpenter" then
+            -- Execute save or load action
+            if self.patternDialogMode == "save" then
+                self:executeSavePattern()
+            elseif self.patternDialogMode == "load" then
+                self:executeLoadPattern()
+            end
+        elseif key == "escape" then
+            -- Close dialog
+            self:closePatternDialog()
+        end
+    elseif self.helpVisible then
+        -- Handle keyboard input for help dialog
+        if key == "escape" then
+            -- Close help dialog
+            self.helpVisible = false
+        end
     end
 end
 
@@ -1013,6 +1394,455 @@ function ui:applyBPMTextInput()
     -- Deactivate text input and clear buffer
     self.bpmTextInputActive = false
     self.bpmTextInputBuffer = ""
+end
+
+-- Handle pattern control button clicks
+-- @param x, y: Mouse coordinates
+-- @return: true if a UI element was clicked, false otherwise
+function ui:handlePatternControlClicks(x, y)
+    -- Calculate pattern button positions (matching drawPatternControls)
+    local saveX = 200
+    local loadX = saveX + self.patternButtonWidth + 10
+    local newX = loadX + self.patternButtonWidth + 10
+    local nameInputX = newX + self.patternButtonWidth + 20
+    local nameInputWidth = 150
+    local nameInputHeight = self.patternButtonHeight
+    
+    -- Check Save button
+    if self.utils.pointInRect(x, y, saveX, self.patternControlsY, self.patternButtonWidth, self.patternButtonHeight) then
+        self.clickedButton = "SAVE"
+        self:openSavePatternDialog()
+        return true
+    -- Check Load button
+    elseif self.utils.pointInRect(x, y, loadX, self.patternControlsY, self.patternButtonWidth, self.patternButtonHeight) then
+        self.clickedButton = "LOAD"
+        self:openLoadPatternDialog()
+        return true
+    -- Check New button (creates new empty pattern)
+    elseif self.utils.pointInRect(x, y, newX, self.patternControlsY, self.patternButtonWidth, self.patternButtonHeight) then
+        self.clickedButton = "NEW"
+        self:createNewPattern()
+        return true
+    -- Check pattern name input field
+    elseif self.utils.pointInRect(x, y, nameInputX, self.patternControlsY, nameInputWidth, nameInputHeight) then
+        self.patternNameInputActive = true
+        self.patternNameInput = ""  -- Clear input when clicking
+        self.patternNameInputCursorTimer = 0
+        return true
+    end
+    
+    -- Check pattern selection dialog clicks if visible
+    if self.patternListVisible then
+        return self:handlePatternDialogClicks(x, y)
+    end
+    
+    return false
+end
+
+-- Open save pattern dialog
+-- Shows pattern selection interface for saving current pattern
+function ui:openSavePatternDialog()
+    self.patternDialogMode = "save"
+    self.patternList = self.sequencer:getPatternList()
+    self.patternListVisible = true
+    self.selectedPatternIndex = 1
+end
+
+-- Open load pattern dialog
+-- Shows pattern selection interface for loading existing pattern
+function ui:openLoadPatternDialog()
+    self.patternDialogMode = "load"
+    self.patternList = self.sequencer:getPatternList()
+    
+    -- Check if any patterns exist before showing dialog
+    if #self.patternList == 0 then
+        print("No saved patterns found. Create some patterns first.")
+        return
+    end
+    
+    self.patternListVisible = true
+    self.selectedPatternIndex = 1
+end
+
+-- Create new empty pattern
+-- Clears current pattern and resets settings to defaults
+function ui:createNewPattern()
+    if self.sequencer then
+        -- Clear current pattern
+        self.sequencer:clearPattern()
+        
+        -- Reset BPM to default
+        self.sequencer:setBPM(120)
+        
+        -- Reset all track volumes to default
+        if self.audio then
+            self.audio:resetAllVolumes()
+        end
+        
+        -- Reset pattern name input
+        self.patternNameInput = ""
+        self.patternNameInputActive = false
+    end
+end
+
+-- Handle clicks within pattern selection dialog
+-- @param x, y: Mouse coordinates
+-- @return: true if a UI element was clicked, false otherwise
+function ui:handlePatternDialogClicks(x, y)
+    if not self.patternListVisible or #self.patternList == 0 then return false end
+    
+    -- Dialog dimensions and position (matching drawPatternSelectionDialog)
+    local dialogWidth = 300
+    local dialogHeight = math.min(200, #self.patternList * 25 + 60)
+    local dialogX = (love.graphics.getWidth() - dialogWidth) / 2
+    local dialogY = (love.graphics.getHeight() - dialogHeight) / 2
+    
+    -- Check pattern list item clicks
+    local listY = dialogY + 35
+    for i, patternName in ipairs(self.patternList) do
+        local itemY = listY + (i - 1) * 25
+        if self.utils.pointInRect(x, y, dialogX + 5, itemY - 2, dialogWidth - 10, 20) then
+            self.selectedPatternIndex = i
+            return true
+        end
+    end
+    
+    -- Check dialog buttons
+    local buttonY = dialogY + dialogHeight - 35
+    local cancelX = dialogX + 10
+    local confirmX = dialogX + dialogWidth - 70
+    
+    if self.utils.pointInRect(x, y, cancelX, buttonY, 50, 25) then
+        -- Cancel button - close dialog
+        self:closePatternDialog()
+        return true
+    elseif self.utils.pointInRect(x, y, confirmX, buttonY, 50, 25) then
+        -- Confirm button - execute save or load
+        if self.patternDialogMode == "save" then
+            self:executeSavePattern()
+        elseif self.patternDialogMode == "load" then
+            self:executeLoadPattern()
+        end
+        return true
+    end
+    
+    return false
+end
+
+-- Close pattern selection dialog
+-- Hides the dialog and resets dialog state
+function ui:closePatternDialog()
+    self.patternListVisible = false
+    self.patternDialogMode = "none"
+    self.selectedPatternIndex = 1
+end
+
+-- Execute pattern save operation
+-- Saves current pattern with specified name
+function ui:executeSavePattern()
+    local patternName = self.patternNameInput
+    
+    -- Use selected pattern name if input is empty and patterns exist
+    if patternName == "" and self.selectedPatternIndex <= #self.patternList then
+        patternName = self.patternList[self.selectedPatternIndex]
+    end
+    
+    -- Check if pattern name is still empty (no input and no selection)
+    if patternName == "" then
+        print("Error: Please enter a pattern name or select an existing pattern.")
+        return
+    end
+    
+    -- Validate filename
+    if not self.sequencer:validatePatternFilename(patternName) then
+        print("Invalid pattern name. Use only letters, numbers, hyphens, and underscores.")
+        return
+    end
+    
+    -- Save pattern
+    local success, error_msg = self.sequencer:savePattern(patternName)
+    if success then
+        print("Pattern saved: " .. patternName)
+        self:closePatternDialog()
+        self.patternNameInput = ""
+        self.patternNameInputActive = false
+    else
+        print("Error saving pattern: " .. (error_msg or "Unknown error"))
+    end
+end
+
+-- Execute pattern load operation
+-- Loads selected pattern from file
+function ui:executeLoadPattern()
+    -- Check if there are any patterns to load
+    if #self.patternList == 0 then
+        print("Error: No saved patterns found.")
+        return
+    end
+    
+    -- Check if selection is valid
+    if self.selectedPatternIndex < 1 or self.selectedPatternIndex > #self.patternList then
+        print("Error: Invalid pattern selection.")
+        return
+    end
+    
+    local patternName = self.patternList[self.selectedPatternIndex]
+    
+    -- Load pattern
+    local success, error_msg = self.sequencer:loadPattern(patternName)
+    if success then
+        print("Pattern loaded: " .. patternName)
+        self:closePatternDialog()
+        self.patternNameInput = patternName
+        self.patternNameInputActive = false
+    else
+        print("Error loading pattern: " .. (error_msg or "Unknown error"))
+    end
+end
+
+-- Draw help dialog with comprehensive user manual
+-- Displays a scrollable help window with complete instructions for using the drum sequencer
+function ui:drawHelpDialog()
+    if not love or not love.graphics then return end
+    
+    -- Dialog dimensions and positioning
+    local dialogWidth = 700
+    local dialogHeight = 500
+    local dialogX = (love.graphics.getWidth() - dialogWidth) / 2
+    local dialogY = (love.graphics.getHeight() - dialogHeight) / 2
+    
+    -- Semi-transparent background overlay
+    love.graphics.setColor(0, 0, 0, 0.7)
+    love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
+    
+    -- Dialog background
+    love.graphics.setColor(0.2, 0.2, 0.2, 0.95)
+    love.graphics.rectangle("fill", dialogX, dialogY, dialogWidth, dialogHeight)
+    
+    -- Dialog border
+    love.graphics.setColor(0.6, 0.6, 0.6, 1)
+    love.graphics.setLineWidth(2)
+    love.graphics.rectangle("line", dialogX, dialogY, dialogWidth, dialogHeight)
+    
+    -- Title bar
+    love.graphics.setColor(0.3, 0.3, 0.5, 1)
+    love.graphics.rectangle("fill", dialogX, dialogY, dialogWidth, 40)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.print("MIDI Drum Sequencer - Help & User Manual", dialogX + 10, dialogY + 12)
+    
+    -- Close button (X in top right)
+    local closeX = dialogX + dialogWidth - 35
+    local closeY = dialogY + 5
+    love.graphics.setColor(0.8, 0.3, 0.3, 1)
+    love.graphics.rectangle("fill", closeX, closeY, 30, 30)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.print("X", closeX + 11, closeY + 8)
+    
+    -- Content area setup
+    local contentX = dialogX + 15
+    local contentY = dialogY + 50
+    local contentWidth = dialogWidth - 30
+    local contentHeight = dialogHeight - 60
+    local lineHeight = 16
+    local sectionSpacing = 8
+    
+    -- Scissor test to clip content to dialog area
+    love.graphics.setScissor(contentX, contentY, contentWidth, contentHeight)
+    
+    -- Calculate scroll offset
+    local scrollOffset = self.helpScrollY or 0
+    local currentY = contentY - scrollOffset
+    
+    -- Help content
+    local helpSections = self:getHelpContent()
+    
+    for _, section in ipairs(helpSections) do
+        -- Section title
+        if section.title then
+            love.graphics.setColor(0.9, 0.9, 0.4, 1)  -- Yellow for titles
+            love.graphics.print(section.title, contentX, currentY)
+            currentY = currentY + lineHeight + 4
+        end
+        
+        -- Section content
+        if section.content then
+            love.graphics.setColor(0.9, 0.9, 0.9, 1)  -- Light gray for content
+            for _, line in ipairs(section.content) do
+                if line == "" then
+                    currentY = currentY + lineHeight / 2  -- Half line for empty lines
+                else
+                    love.graphics.print(line, contentX + 10, currentY)
+                    currentY = currentY + lineHeight
+                end
+            end
+        end
+        
+        currentY = currentY + sectionSpacing
+    end
+    
+    -- Clear scissor test
+    love.graphics.setScissor()
+    
+    -- Scroll indicator if needed
+    local totalContentHeight = currentY - (contentY - scrollOffset)
+    if totalContentHeight > contentHeight then
+        local scrollBarX = dialogX + dialogWidth - 20
+        local scrollBarY = contentY
+        local scrollBarHeight = contentHeight
+        local scrollThumbHeight = math.max(20, scrollBarHeight * (contentHeight / totalContentHeight))
+        local scrollThumbY = scrollBarY + (scrollOffset / (totalContentHeight - contentHeight)) * (scrollBarHeight - scrollThumbHeight)
+        
+        -- Scroll bar background
+        love.graphics.setColor(0.3, 0.3, 0.3, 1)
+        love.graphics.rectangle("fill", scrollBarX, scrollBarY, 15, scrollBarHeight)
+        
+        -- Scroll thumb
+        love.graphics.setColor(0.6, 0.6, 0.6, 1)
+        love.graphics.rectangle("fill", scrollBarX + 2, scrollThumbY, 11, scrollThumbHeight)
+    end
+end
+
+-- Get comprehensive help content for the drum sequencer
+-- Returns structured help data with titles and content sections
+function ui:getHelpContent()
+    return {
+        {
+            title = "🥁 WELCOME TO MIDI DRUM SEQUENCER",
+            content = {
+                "A professional 16-step drum pattern sequencer with 8 tracks, real-time audio,",
+                "and MIDI export capabilities. Create drum beats, adjust volumes, and export to MIDI.",
+                ""
+            }
+        },
+        {
+            title = "🎵 GETTING STARTED",
+            content = {
+                "• Click grid cells to toggle drum hits on/off",
+                "• Press PLAY to start playback, STOP to stop",
+                "• Adjust BPM with slider or text input (60-300 BPM)",
+                "• Use volume sliders on the right to control track levels",
+                ""
+            }
+        },
+        {
+            title = "🎛️ TRANSPORT CONTROLS",
+            content = {
+                "PLAY    - Start/continue playback",
+                "STOP    - Stop playback",
+                "RESET   - Stop and return to step 1",
+                "CLEAR   - Clear entire pattern grid",
+                "EXPORT  - Export pattern as MIDI file",
+                "METRO   - Toggle metronome on/off",
+                "HELP    - Show this help dialog",
+                ""
+            }
+        },
+        {
+            title = "🥁 DRUM TRACKS (Top to Bottom)",
+            content = {
+                "Track 1: Kick Drum        - Deep bass drum",
+                "Track 2: Snare Drum       - Sharp snare hit",
+                "Track 3: Closed Hi-Hat    - Crisp hi-hat",
+                "Track 4: Open Hi-Hat      - Sizzling hi-hat",
+                "Track 5: Crash Cymbal     - Bright crash",
+                "Track 6: Ride Cymbal      - Metallic ride",
+                "Track 7: Low Tom          - Deep tom",
+                "Track 8: High Tom         - Bright tom",
+                ""
+            }
+        },
+        {
+            title = "⚡ QUICK TIPS",
+            content = {
+                "• Click track labels to preview sounds",
+                "• Pattern loops automatically when playing",
+                "• Current step is highlighted during playback",
+                "• Grid cells light up when sounds are triggered",
+                "• Metronome has accent beats on steps 1, 5, 9, 13",
+                ""
+            }
+        },
+        {
+            title = "💾 PATTERN MANAGEMENT",
+            content = {
+                "SAVE    - Save current pattern with custom name",
+                "LOAD    - Load previously saved pattern",
+                "DELETE  - Remove selected pattern from list",
+                "",
+                "Patterns preserve: drum hits, BPM, volumes, metronome settings",
+                ""
+            }
+        },
+        {
+            title = "🎚️ VOLUME CONTROLS",
+            content = {
+                "• Individual sliders for each drum track (0-100%)",
+                "• Reset Vol button restores all tracks to 70%",
+                "• Separate metronome volume controls",
+                "• Volumes are saved with patterns",
+                ""
+            }
+        },
+        {
+            title = "🎼 MIDI EXPORT",
+            content = {
+                "• Exports Standard MIDI File (SMF) format",
+                "• Uses General MIDI Drum Map (Channel 10)",
+                "• Compatible with all DAWs and MIDI software",
+                "• Preserves timing and pattern structure",
+                "• Files saved as: drum_pattern_YYYYMMDD_HHMMSS.mid",
+                ""
+            }
+        },
+        {
+            title = "🔊 AUDIO SYSTEM",
+            content = {
+                "• High-quality procedural drum synthesis",
+                "• Real-time audio with low latency",
+                "• Support for WAV sample loading",
+                "• Place WAV files in assets/samples/ for custom sounds",
+                ""
+            }
+        },
+        {
+            title = "⌨️ KEYBOARD SHORTCUTS",
+            content = {
+                "• Click and drag to interact with UI elements",
+                "• All controls are mouse-based for simplicity",
+                "• Pattern name input supports standard text editing",
+                ""
+            }
+        },
+        {
+            title = "🔧 TROUBLESHOOTING",
+            content = {
+                "No Sound:",
+                "  • Check system volume and audio output",
+                "  • Ensure track volumes are not at 0%",
+                "",
+                "MIDI Export Issues:",
+                "  • Check file permissions in save directory",
+                "  • Ensure pattern has some drum hits",
+                "",
+                "Performance Issues:",
+                "  • Close other audio applications",
+                "  • Reduce metronome volume if causing distortion",
+                ""
+            }
+        },
+        {
+            title = "📄 LICENSE & CREDITS",
+            content = {
+                "GNU General Public License v3.0 (GPL-3.0)",
+                "Free and open source software",
+                "",
+                "Built with LÖVE 2D framework",
+                "Professional drum sequencer for music production",
+                "",
+                "Press ESC or click X to close this help dialog"
+            }
+        }
+    }
 end
 
 return ui

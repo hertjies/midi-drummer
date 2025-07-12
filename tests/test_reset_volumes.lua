@@ -47,14 +47,24 @@ local mockLove = {
     audio = {
         newSource = function(filename, type)
             -- Mock audio source
-            return {
+            local source
+            source = {
                 setVolume = function(self, volume) self.volume = volume end,
                 getVolume = function(self) return self.volume or 1.0 end,
                 play = function(self) end,
                 stop = function(self) end,
                 isPlaying = function(self) return false end,
+                clone = function(self) 
+                    local cloned = {}
+                    for k, v in pairs(source) do
+                        cloned[k] = v
+                    end
+                    cloned.volume = self.volume
+                    return cloned
+                end,
                 volume = 1.0
             }
+            return source
         end
     }
 }
@@ -218,7 +228,7 @@ function TestResetVolumes:testResetButtonWithoutAudioSystem()
     ui:mousepressed(clickX, clickY)
     
     -- Should not crash and button should not be clicked
-    luaunit.assertNotEquals(ui.clickedButton, "Reset Vol", "Reset button should not activate without audio system")
+    luaunit.assertNotNil(ui.clickedButton ~= "Reset Vol" and true or nil, "Reset button should not activate without audio system")
     
     -- Restore audio system
     ui.audio = originalAudio
@@ -324,7 +334,7 @@ function TestResetVolumes:testResetButtonClickPrevention()
     ui:mousepressed(clickX, clickY)
     
     -- Verify button was not activated
-    luaunit.assertNotEquals(ui.clickedButton, "Reset Vol", "Reset button should not activate during BPM drag")
+    luaunit.assertNotNil(ui.clickedButton ~= "Reset Vol" and true or nil, "Reset button should not activate during BPM drag")
     luaunit.assertEquals(audio:getVolume(1), 0.3, "Volume should not be reset during BPM drag")
     
     -- Reset state

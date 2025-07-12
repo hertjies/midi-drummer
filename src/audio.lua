@@ -100,6 +100,9 @@ end
 -- Load default drum samples from assets directory
 -- Falls back to generating basic waveforms if files don't exist
 function audio:loadDefaultSamples()
+    local loadedCount = 0
+    local generatedCount = 0
+    
     for track = 1, 8 do
         local filename = "assets/samples/" .. self.trackNames[track] .. ".wav"
         
@@ -112,11 +115,22 @@ function audio:loadDefaultSamples()
         if success and sample then
             self.samples[track] = sample
             print("Loaded sample: " .. filename)
+            loadedCount = loadedCount + 1
         else
             -- Generate a basic waveform as fallback
             self:generateFallbackSample(track)
             print("Generated fallback sample for track " .. track .. " (" .. self.trackNames[track] .. ")")
+            generatedCount = generatedCount + 1
         end
+    end
+    
+    -- Print summary
+    if loadedCount > 0 and generatedCount > 0 then
+        print("Audio: Loaded " .. loadedCount .. " WAV samples, generated " .. generatedCount .. " procedural samples")
+    elseif loadedCount == 8 then
+        print("Audio: All samples loaded from WAV files - high quality audio enabled")
+    elseif generatedCount == 8 then
+        print("Audio: Using procedural generation - place WAV files in assets/samples/ for better quality")
     end
 end
 
@@ -162,40 +176,89 @@ function audio:generateFallbackSample(track)
     
     local soundData = love.sound.newSoundData(samples, sampleRate, 16, 1)
     
-    -- Generate different waveforms based on track type
+    -- Generate realistic drum sounds using advanced synthesis
     for i = 0, samples - 1 do
         local t = i / sampleRate
-        local amplitude = math.exp(-t * 5) -- Exponential decay
         local sample = 0
         
         if track == 1 then
-            -- Kick: Low frequency sine wave
-            sample = amplitude * math.sin(2 * math.pi * 60 * t)
+            -- Kick: Punchy kick with click and sub-bass
+            local click_env = math.exp(-t * 50)  -- Sharp attack envelope
+            local sub_env = math.exp(-t * 3)     -- Longer sustain envelope
+            local click = math.sin(2 * math.pi * 80 * t) * click_env * 0.3
+            local sub = math.sin(2 * math.pi * 45 * t) * sub_env * 0.7
+            sample = click + sub
+            
         elseif track == 2 then
-            -- Snare: Noise burst with tone
-            local noise = (math.random() - 0.5) * 2
-            local tone = math.sin(2 * math.pi * 200 * t)
-            sample = amplitude * (noise * 0.7 + tone * 0.3)
-        elseif track == 3 or track == 4 then
-            -- Hi-hats: High frequency noise
-            sample = amplitude * (math.random() - 0.5) * 2
-            amplitude = amplitude * math.exp(-t * 20) -- Faster decay for hi-hats
+            -- Snare: Realistic snare with body and snares
+            local body_env = math.exp(-t * 8)
+            local snare_env = math.exp(-t * 15)
+            local body = math.sin(2 * math.pi * 200 * t) * body_env * 0.4
+            local snares = (math.random() - 0.5) * 2 * snare_env * 0.6
+            -- Add some harmonic content
+            local harmonic = math.sin(2 * math.pi * 400 * t) * body_env * 0.2
+            sample = body + snares + harmonic
+            
+        elseif track == 3 then
+            -- Closed Hi-hat: Crisp, short metallic sound
+            local env = math.exp(-t * 25)
+            local noise = (math.random() - 0.5) * 2 * env
+            -- Add metallic shimmer
+            local metallic = (math.sin(2 * math.pi * 8000 * t) + math.sin(2 * math.pi * 12000 * t)) * env * 0.3
+            sample = noise * 0.7 + metallic
+            
+        elseif track == 4 then
+            -- Open Hi-hat: Longer, more sizzling
+            local env = math.exp(-t * 4)  -- Longer decay
+            local noise = (math.random() - 0.5) * 2 * env
+            -- More complex metallic content
+            local sizzle = (math.sin(2 * math.pi * 10000 * t) + math.sin(2 * math.pi * 15000 * t) + math.sin(2 * math.pi * 6000 * t)) * env * 0.4
+            sample = noise * 0.6 + sizzle
+            
         elseif track == 5 then
-            -- Crash: Bright noise with long decay
-            sample = amplitude * (math.random() - 0.5) * 2 * math.exp(-t * 2)
+            -- Crash: Complex, long-sustaining cymbal
+            local env = math.exp(-t * 1.5)  -- Very long decay
+            local noise = (math.random() - 0.5) * 2 * env
+            -- Complex harmonic series for realistic cymbal sound
+            local harmonics = (
+                math.sin(2 * math.pi * 3000 * t) + 
+                math.sin(2 * math.pi * 5000 * t) + 
+                math.sin(2 * math.pi * 8000 * t) + 
+                math.sin(2 * math.pi * 12000 * t)
+            ) * env * 0.3
+            sample = noise * 0.7 + harmonics
+            
         elseif track == 6 then
-            -- Ride: Metallic tone
-            sample = amplitude * (math.sin(2 * math.pi * 300 * t) + math.sin(2 * math.pi * 900 * t)) * 0.5
+            -- Ride: Defined ping with sustain
+            local ping_env = math.exp(-t * 20)
+            local sustain_env = math.exp(-t * 2)
+            local ping = math.sin(2 * math.pi * 2500 * t) * ping_env * 0.5
+            local sustain = (math.sin(2 * math.pi * 4000 * t) + math.sin(2 * math.pi * 6000 * t)) * sustain_env * 0.3
+            local noise = (math.random() - 0.5) * 2 * sustain_env * 0.2
+            sample = ping + sustain + noise
+            
         elseif track == 7 then
-            -- Low tom: Mid-low frequency
-            sample = amplitude * math.sin(2 * math.pi * 100 * t)
+            -- Low tom: Deep, resonant tom
+            local env = math.exp(-t * 6)
+            local fundamental = math.sin(2 * math.pi * 80 * t) * env * 0.8
+            local harmonic = math.sin(2 * math.pi * 160 * t) * env * 0.3
+            -- Add some attack punch
+            local attack = math.sin(2 * math.pi * 200 * t) * math.exp(-t * 30) * 0.2
+            sample = fundamental + harmonic + attack
+            
         elseif track == 8 then
-            -- High tom: Mid-high frequency
-            sample = amplitude * math.sin(2 * math.pi * 150 * t)
+            -- High tom: Bright, punchy tom
+            local env = math.exp(-t * 8)
+            local fundamental = math.sin(2 * math.pi * 120 * t) * env * 0.8
+            local harmonic = math.sin(2 * math.pi * 240 * t) * env * 0.4
+            -- Add attack definition
+            local attack = math.sin(2 * math.pi * 300 * t) * math.exp(-t * 35) * 0.3
+            sample = fundamental + harmonic + attack
         end
         
-        -- Apply final amplitude and clamp
-        sample = math.max(-1, math.min(1, sample * amplitude))
+        -- Apply compression-like limiting and clamp
+        sample = sample * 0.8  -- Reduce overall level to prevent clipping
+        sample = math.max(-1, math.min(1, sample))
         soundData:setSample(i, sample)
     end
     
