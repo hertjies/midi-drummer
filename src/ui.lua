@@ -77,6 +77,10 @@ local ui = {
     hoveredCell = nil,      -- Currently hovered grid cell {track, step}
     clickedButton = nil,    -- Currently pressed button name
     
+    -- Keyboard navigation state
+    selectedCell = {track = 1, step = 1}, -- Currently selected cell for keyboard navigation
+    keyboardNavigationActive = false,     -- Whether keyboard navigation is active
+    
     -- Pattern management UI state
     patternNameInput = "",           -- Current pattern name being typed
     patternNameInputActive = false,  -- Whether pattern name input is focused
@@ -277,6 +281,7 @@ function ui:draw()
     self:drawBPMControl()        -- BPM display and slider
     self:drawBPMTextInput()      -- BPM text input field
     self:drawVolumeControls()    -- Volume sliders
+    self:drawUndoRedoStatus()    -- Undo/redo status and shortcuts
     
     -- Draw pattern selection dialog last so it appears on top of everything else
     -- This ensures the dialog is not hidden behind the grid or other UI elements
@@ -345,10 +350,13 @@ function ui:drawGrid()
     self:setUIColor("textAccent")
     love.graphics.setFont(love.graphics.newFont(12))
     
-    -- Draw track labels on the left with color coding
+    -- Draw track labels on the left with color coding and trigger feedback
     for track = 1, 8 do
-        -- Use the track's normal color for the label
-        local labelColor = self.trackColors[track].normal
+        -- Check if this track has audio trigger feedback (same as grid cells)
+        local hasTriggerFeedback = self.audio and self.audio:hasTriggerFeedback(track)
+        
+        -- Use bright color when triggered, normal color otherwise
+        local labelColor = hasTriggerFeedback and self.trackColors[track].bright or self.trackColors[track].normal
         love.graphics.setColor(labelColor[1], labelColor[2], labelColor[3])
         
         love.graphics.print(
@@ -382,7 +390,15 @@ function ui:drawGrid()
             
             -- Get appropriate color based on track and state
             local cellColor = self:getTrackColor(track, isActive, isCurrentStep, hasTriggerFeedback)
-            love.graphics.setColor(cellColor[1], cellColor[2], cellColor[3])
+            
+            -- Apply velocity-based alpha for active cells (visual velocity indication)
+            if isActive and self.sequencer then
+                local velocity = self.sequencer:getVelocity(track, step)
+                local velocityAlpha = 0.4 + (velocity / 127.0) * 0.6  -- Range: 0.4-1.0 alpha
+                love.graphics.setColor(cellColor[1], cellColor[2], cellColor[3], velocityAlpha)
+            else
+                love.graphics.setColor(cellColor[1], cellColor[2], cellColor[3])
+            end
             
             -- Draw the main cell
             love.graphics.rectangle("fill", x, y, self.cellSize, self.cellSize)
@@ -400,21 +416,29 @@ function ui:drawGrid()
                 love.graphics.setColor(1, 1, 1, 0.2)  -- Semi-transparent white overlay
                 love.graphics.rectangle("fill", x, y, self.cellSize, self.cellSize)
             end
+            
+            -- Draw keyboard selection indicator
+            if self.keyboardNavigationActive and self.selectedCell and 
+               self.selectedCell.track == track and self.selectedCell.step == step then
+                -- Use yellow border for keyboard selection
+                love.graphics.setColor(1, 1, 0, 0.8)  -- Yellow border with transparency
+                love.graphics.setLineWidth(2)
+                love.graphics.rectangle("line", x - 1, y - 1, self.cellSize + 2, self.cellSize + 2)
+            end
         end
     end
 end
 
 -- Draw transport control buttons
--- Renders Play, Stop, Reset, Clear, Export, and Metronome buttons
+-- Renders Play, Stop, Clear, Export, and Metronome buttons
 function ui:drawTransportControls()
     love.graphics.setColor(1, 1, 1)
     love.graphics.setFont(love.graphics.newFont(14))
     
-    -- Calculate button positions
+    -- Calculate button positions (Reset button removed)
     local playX = 200
     local stopX = playX + self.buttonWidth + 10
-    local resetX = stopX + self.buttonWidth + 10
-    local clearX = resetX + self.buttonWidth + 10
+    local clearX = stopX + self.buttonWidth + 10
     local exportX = clearX + self.buttonWidth + 10
     local metronomeX = exportX + self.buttonWidth + 10
     local helpX = metronomeX + self.buttonWidth + 10
@@ -422,10 +446,9 @@ function ui:drawTransportControls()
     -- Get metronome state for button display
     local metronomeEnabled = self.sequencer and self.sequencer:isMetronomeEnabled() or false
     
-    -- Draw buttons with appropriate states
+    -- Draw buttons with appropriate states (Reset button removed)
     self:drawButton("PLAY", playX, self.transportY, self.buttonWidth, self.buttonHeight, self.sequencer.isPlaying)
     self:drawButton("STOP", stopX, self.transportY, self.buttonWidth, self.buttonHeight, false)
-    self:drawButton("RESET", resetX, self.transportY, self.buttonWidth, self.buttonHeight, false)
     self:drawButton("CLEAR", clearX, self.transportY, self.buttonWidth, self.buttonHeight, false)
     self:drawButton("EXPORT", exportX, self.transportY, self.buttonWidth, self.buttonHeight, false)
     self:drawButton("METRO", metronomeX, self.transportY, self.buttonWidth, self.buttonHeight, metronomeEnabled)
@@ -922,16 +945,25 @@ function ui:mousepressed(x, y)
         
         -- Check if click is within cell (not in padding)
         if self.utils.pointInRect(x, y, pixelX, pixelY, self.cellSize, self.cellSize) then
-            self.sequencer:toggleStep(cellY, cellX)  -- Note: track = cellY, step = cellX
+            -- Disable keyboard navigation when mouse is used
+            self.keyboardNavigationActive = false
+            
+            -- Use command system for undoable step toggling
+            if self.commandHistory then
+                local command = self.commandHistory.ToggleStepCommand:new(self.sequencer, cellY, cellX)
+                self.commandHistory:executeCommand(command)
+            else
+                -- Fallback to direct call if command system not available
+                self.sequencer:toggleStep(cellY, cellX)
+            end
             uiElementClicked = true
         end
     end
     
-    -- Check transport button clicks
+    -- Check transport button clicks (Reset button removed)
     local playX = 200
     local stopX = playX + self.buttonWidth + 10
-    local resetX = stopX + self.buttonWidth + 10
-    local clearX = resetX + self.buttonWidth + 10
+    local clearX = stopX + self.buttonWidth + 10
     local exportX = clearX + self.buttonWidth + 10
     local metronomeX = exportX + self.buttonWidth + 10
     local helpX = metronomeX + self.buttonWidth + 10
@@ -944,13 +976,16 @@ function ui:mousepressed(x, y)
         self.clickedButton = "STOP"
         self.sequencer:stop()
         uiElementClicked = true
-    elseif self.utils.pointInRect(x, y, resetX, self.transportY, self.buttonWidth, self.buttonHeight) then
-        self.clickedButton = "RESET"
-        self.sequencer:stop()  -- Reset also stops playback
-        uiElementClicked = true
     elseif self.utils.pointInRect(x, y, clearX, self.transportY, self.buttonWidth, self.buttonHeight) then
         self.clickedButton = "CLEAR"
-        self.sequencer:clearPattern()  -- Clear all pattern steps
+        -- Use command system for undoable pattern clearing
+        if self.commandHistory then
+            local command = self.commandHistory.ClearPatternCommand:new(self.sequencer)
+            self.commandHistory:executeCommand(command)
+        else
+            -- Fallback to direct call if command system not available
+            self.sequencer:clearPattern()
+        end
         uiElementClicked = true
     elseif self.utils.pointInRect(x, y, exportX, self.transportY, self.buttonWidth, self.buttonHeight) then
         self.clickedButton = "EXPORT"
@@ -1784,6 +1819,18 @@ function ui:getHelpContent()
             }
         },
         {
+            title = "🎵 VELOCITY CONTROL",
+            content = {
+                "• Right-click active grid cells to adjust velocity",
+                "• Top of cell = high velocity (loud)",
+                "• Bottom of cell = low velocity (soft)",
+                "• Velocity affects both audio volume and MIDI export",
+                "• Visual feedback: brighter cells = higher velocity",
+                "• Range: 10-127 (MIDI standard)",
+                ""
+            }
+        },
+        {
             title = "🎼 MIDI EXPORT",
             content = {
                 "• Exports Standard MIDI File (SMF) format",
@@ -1807,9 +1854,26 @@ function ui:getHelpContent()
         {
             title = "⌨️ KEYBOARD SHORTCUTS",
             content = {
-                "• Click and drag to interact with UI elements",
-                "• All controls are mouse-based for simplicity",
-                "• Pattern name input supports standard text editing",
+                "Playback Controls:",
+                "Spacebar   - Play/Stop toggle",
+                "",
+                "Pattern Editing:",
+                "Ctrl+Z     - Undo last action",
+                "Ctrl+Y     - Redo last undone action", 
+                "Arrow Keys - Navigate grid (yellow highlight)",
+                "Enter      - Toggle selected step on/off",
+                "",
+                "Track Preview:",
+                "1-8        - Preview drum sounds for tracks 1-8",
+                "",
+                "General:",
+                "ESC        - Close dialogs or quit application",
+                "",
+                "Mouse Controls:",
+                "• Left click grid cells to toggle drum hits",
+                "• Right click active cells to adjust velocity",
+                "• Click and drag sliders to adjust values",
+                "• Click track labels to preview sounds",
                 ""
             }
         },
@@ -1843,6 +1907,143 @@ function ui:getHelpContent()
             }
         }
     }
+end
+
+-- Draw undo/redo status and keyboard shortcuts
+-- Shows undo/redo availability and keyboard shortcuts in bottom-right corner
+function ui:drawUndoRedoStatus()
+    if not self.commandHistory then return end
+    
+    -- Position in bottom-right corner
+    local statusX = love.graphics.getWidth() - 180
+    local statusY = love.graphics.getHeight() - 60
+    
+    -- Set font and color
+    love.graphics.setFont(love.graphics.newFont(10))
+    
+    -- Get undo/redo availability
+    local canUndo = self.commandHistory:canUndo()
+    local canRedo = self.commandHistory:canRedo()
+    local stats = self.commandHistory:getStats()
+    
+    -- Draw undo status
+    if canUndo then
+        self:setUIColor("textPrimary")
+        love.graphics.print("Ctrl+Z: Undo (" .. stats.undoCount .. ")", statusX, statusY)
+    else
+        self:setUIColor("textSecondary")
+        love.graphics.print("Ctrl+Z: Undo", statusX, statusY)
+    end
+    
+    -- Draw redo status
+    if canRedo then
+        self:setUIColor("textPrimary")
+        love.graphics.print("Ctrl+Y: Redo (" .. stats.redoCount .. ")", statusX, statusY + 15)
+    else
+        self:setUIColor("textSecondary")
+        love.graphics.print("Ctrl+Y: Redo", statusX, statusY + 15)
+    end
+    
+    -- Draw history info (for debugging)
+    if canUndo or canRedo then
+        self:setUIColor("textSecondary")
+        love.graphics.print("History: " .. stats.undoCount .. "/" .. stats.maxSize, statusX, statusY + 30)
+    end
+end
+
+-- Handle arrow key navigation in the grid
+-- @param key: Arrow key pressed ("up", "down", "left", "right")
+function ui:handleArrowKeyNavigation(key)
+    -- Activate keyboard navigation
+    self.keyboardNavigationActive = true
+    
+    -- Move selection based on arrow key
+    if key == "up" and self.selectedCell.track > 1 then
+        self.selectedCell.track = self.selectedCell.track - 1
+    elseif key == "down" and self.selectedCell.track < 8 then
+        self.selectedCell.track = self.selectedCell.track + 1
+    elseif key == "left" and self.selectedCell.step > 1 then
+        self.selectedCell.step = self.selectedCell.step - 1
+    elseif key == "right" and self.selectedCell.step < 16 then
+        self.selectedCell.step = self.selectedCell.step + 1
+    end
+    
+    -- Clear any mouse hover state when using keyboard
+    self.hoveredCell = nil
+    
+    print("Selected: Track " .. self.selectedCell.track .. " (" .. self.trackLabels[self.selectedCell.track] .. "), Step " .. self.selectedCell.step)
+end
+
+-- Toggle the currently selected step (for Enter key)
+function ui:toggleCurrentStep()
+    if not self.keyboardNavigationActive then
+        -- If no keyboard navigation, start at step 1, track 1
+        self.selectedCell = {track = 1, step = 1}
+        self.keyboardNavigationActive = true
+    end
+    
+    -- Use command system for undoable step toggling
+    if self.commandHistory then
+        local command = self.commandHistory.ToggleStepCommand:new(self.sequencer, self.selectedCell.track, self.selectedCell.step)
+        self.commandHistory:executeCommand(command)
+    else
+        -- Fallback to direct call if command system not available
+        self.sequencer:toggleStep(self.selectedCell.track, self.selectedCell.step)
+    end
+    
+    local state = self.sequencer.pattern[self.selectedCell.track][self.selectedCell.step] and "ON" or "OFF"
+    print("Toggled Track " .. self.selectedCell.track .. " (" .. self.trackLabels[self.selectedCell.track] .. "), Step " .. self.selectedCell.step .. " -> " .. state)
+end
+
+-- Handle right mouse button press for velocity editing
+-- @param x, y: Mouse coordinates
+function ui:rightMousePressed(x, y)
+    -- Check if right-clicking on grid cells for velocity editing
+    local cellX = math.floor((x - self.gridX) / (self.cellSize + self.cellPadding)) + 1
+    local cellY = math.floor((y - self.gridY) / (self.cellSize + self.cellPadding)) + 1
+    
+    -- Check if within grid bounds
+    if cellX >= 1 and cellX <= 16 and cellY >= 1 and cellY <= 8 then
+        local pixelX = self.gridX + (cellX - 1) * (self.cellSize + self.cellPadding)
+        local pixelY = self.gridY + (cellY - 1) * (self.cellSize + self.cellPadding)
+        
+        -- Check if click is within cell (not in padding)
+        if self.utils.pointInRect(x, y, pixelX, pixelY, self.cellSize, self.cellSize) then
+            -- Only edit velocity if step is active
+            if self.sequencer.pattern[cellY][cellX] then
+                self:editVelocity(cellY, cellX, x, y)
+            end
+        end
+    end
+end
+
+-- Edit velocity for a specific step based on mouse position
+-- @param track: Track number (1-8)
+-- @param step: Step number (1-16)
+-- @param mouseX, mouseY: Mouse coordinates for velocity calculation
+function ui:editVelocity(track, step, mouseX, mouseY)
+    -- Calculate velocity based on vertical position within cell
+    local cellY = self.gridY + (track - 1) * (self.cellSize + self.cellPadding)
+    local relativeY = mouseY - cellY
+    local normalizedY = self.utils.clamp(relativeY / self.cellSize, 0, 1)
+    
+    -- Invert Y so top = high velocity, bottom = low velocity
+    local velocityNormalized = 1.0 - normalizedY
+    local newVelocity = math.floor(velocityNormalized * 127)
+    
+    -- Ensure minimum velocity of 10 for usability
+    newVelocity = math.max(10, newVelocity)
+    
+    -- Set the velocity
+    self.sequencer:setVelocity(track, step, newVelocity)
+    
+    -- Play preview with new velocity
+    if self.audio then
+        local normalizedVelocity = newVelocity / 127.0
+        self.audio:playSample(track, nil, normalizedVelocity)
+    end
+    
+    print("Set velocity: Track " .. track .. " (" .. self.trackLabels[track] .. "), Step " .. step .. " -> " .. newVelocity .. "/127")
 end
 
 return ui

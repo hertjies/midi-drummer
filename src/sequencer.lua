@@ -57,6 +57,15 @@ function sequencer:init()
         end
     end
     
+    -- Initialize velocity data (separate from pattern for backward compatibility)
+    self.velocity = {}
+    for track = 1, 8 do
+        self.velocity[track] = {}
+        for step = 1, 16 do
+            self.velocity[track][step] = 100  -- Default velocity (0-127, 100 = ~78%)
+        end
+    end
+    
     -- Initialize timing state for clock-based system
     self.currentStep = 1
     self.isPlaying = false
@@ -171,10 +180,10 @@ function sequencer:triggerCurrentStep()
     -- Check each track to see if current step is active
     for track = 1, 8 do
         if self.pattern[track][self.currentStep] then
-            -- Audio playback will be implemented in Phase 3
-            -- For now, this serves as the integration point
+            -- Play sample with velocity
             if self.audio then
-                self.audio:playSample(track)
+                local velocity = self:getNormalizedVelocity(track, self.currentStep)
+                self.audio:playSample(track, nil, velocity)
             end
         end
     end
@@ -506,6 +515,36 @@ function sequencer:validatePatternFilename(filename)
     end
     
     return self.patternManager:validateFilename(filename)
+end
+
+-- Get velocity for a specific step
+-- @param track: Track number (1-8)
+-- @param step: Step number (1-16)
+-- @return: Velocity value (0-127)
+function sequencer:getVelocity(track, step)
+    if track >= 1 and track <= 8 and step >= 1 and step <= 16 then
+        return self.velocity[track][step]
+    end
+    return 100  -- Default velocity
+end
+
+-- Set velocity for a specific step
+-- @param track: Track number (1-8)
+-- @param step: Step number (1-16)
+-- @param velocity: Velocity value (0-127)
+function sequencer:setVelocity(track, step, velocity)
+    if track >= 1 and track <= 8 and step >= 1 and step <= 16 then
+        -- Clamp velocity to valid MIDI range
+        self.velocity[track][step] = math.max(0, math.min(127, velocity))
+    end
+end
+
+-- Get normalized velocity (0.0-1.0) for audio scaling
+-- @param track: Track number (1-8)
+-- @param step: Step number (1-16)
+-- @return: Normalized velocity (0.0-1.0)
+function sequencer:getNormalizedVelocity(track, step)
+    return self:getVelocity(track, step) / 127.0
 end
 
 return sequencer

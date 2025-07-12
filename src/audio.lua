@@ -390,22 +390,27 @@ end
 -- Uses prebuffered sources for minimal latency and coordinates visual feedback
 -- @param track: Track number (1-8)
 -- @param delayVisualFeedback: Optional delay for visual feedback (for timing coordination)
-function audio:playSample(track, delayVisualFeedback)
+-- @param velocity: Optional velocity (0.0-1.0, defaults to 1.0 for backward compatibility)
+function audio:playSample(track, delayVisualFeedback, velocity)
     if track < 1 or track > 8 or not self.samples[track] or not self.isReady then
         return false
     end
     
     local source = nil
     
+    -- Calculate final volume (track volume * velocity)
+    local normalizedVelocity = velocity or 1.0  -- Default to full velocity
+    local finalVolume = self.volumes[track] * normalizedVelocity
+    
     -- Try to use a prebuffered source first for minimal latency
     if #self.prebufferedSources[track] > 0 then
         source = table.remove(self.prebufferedSources[track], 1)
-        -- Update volume in case it changed
-        source:setVolume(self.volumes[track])
+        -- Set volume with velocity applied
+        source:setVolume(finalVolume)
     else
         -- Fall back to creating a new source if prebuffer is empty
         source = self.samples[track]:clone()
-        source:setVolume(self.volumes[track])
+        source:setVolume(finalVolume)
     end
     
     -- Play the sound immediately (if love.audio is available)

@@ -55,6 +55,7 @@ local test_pattern_save_load = require("test_pattern_save_load")
 local test_pattern_manager_bugfix = require("test_pattern_manager_bugfix")
 local test_pattern_ui_bugfixes = require("test_pattern_ui_bugfixes")
 local test_pattern_dialog_z_order = require("test_pattern_dialog_z_order")
+local test_undo_redo_system = require("test_undo_redo_system")
 
 -- Run all tests
 print("=== MIDI Drum Sequencer Test Suite ===")
@@ -148,6 +149,9 @@ allPassed = luaunit.run(test_pattern_ui_bugfixes) and allPassed
 
 print("\nRunning Pattern Dialog Z-Order Tests...")
 allPassed = luaunit.run(test_pattern_dialog_z_order) and allPassed
+
+print("\nRunning Undo/Redo System Tests...")
+allPassed = luaunit.run(test_undo_redo_system) and allPassed
 
 print("\n=== Test Summary ===")
 if allPassed then

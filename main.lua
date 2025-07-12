@@ -22,12 +22,13 @@
 
 -- Application state table
 local app = {
-    state = "main",     -- Current application state (only "main" for now)
-    sequencer = nil,    -- Sequencer module reference
-    ui = nil,           -- UI module reference
-    audio = nil,        -- Audio module reference
-    midi = nil,         -- MIDI module reference
-    utils = nil         -- Utilities module reference
+    state = "main",          -- Current application state (only "main" for now)
+    sequencer = nil,         -- Sequencer module reference
+    ui = nil,                -- UI module reference
+    audio = nil,             -- Audio module reference
+    midi = nil,              -- MIDI module reference
+    utils = nil,             -- Utilities module reference
+    commandHistory = nil     -- Command history for undo/redo functionality
 }
 
 -- Love2D initialization callback
@@ -39,14 +40,17 @@ function love.load()
     app.midi = require("src.midi")
     app.ui = require("src.ui")
     app.utils = require("src.utils")
+    app.commandHistory = require("src.command_history")
     
     -- Initialize modules
     app.sequencer:init()
     app.audio:init()
     app.ui:init()
+    app.commandHistory:init(app.sequencer, app.audio, app.ui)
     
-    -- Connect audio to sequencer
+    -- Connect modules
     app.sequencer.audio = app.audio
+    app.ui.commandHistory = app.commandHistory
     
     -- Set dark background color
     love.graphics.setBackgroundColor(0.1, 0.1, 0.1)
@@ -75,8 +79,14 @@ end
 -- @param x, y: Mouse coordinates
 -- @param button: Mouse button number (1 = left, 2 = right, 3 = middle)
 function love.mousepressed(x, y, button)
-    if app.state == "main" and button == 1 then
-        app.ui:mousepressed(x, y)
+    if app.state == "main" then
+        if button == 1 then
+            -- Left click: normal UI interaction
+            app.ui:mousepressed(x, y)
+        elseif button == 2 then
+            -- Right click: velocity editing
+            app.ui:rightMousePressed(x, y)
+        end
     end
 end
 
@@ -109,8 +119,55 @@ end
 -- @param key: Key that was pressed
 function love.keypressed(key)
     if app.state == "main" then
-        -- Let UI handle key input first (for text input)
-        app.ui:keypressed(key)
+        -- Handle undo/redo shortcuts first (Ctrl+Z/Ctrl+Y)
+        local ctrlPressed = love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")
+        
+        if ctrlPressed and key == "z" then
+            -- Undo (Ctrl+Z)
+            if app.commandHistory:undo() then
+                print("Undo performed")
+            else
+                print("Nothing to undo")
+            end
+        elseif ctrlPressed and key == "y" then
+            -- Redo (Ctrl+Y)
+            if app.commandHistory:redo() then
+                print("Redo performed")
+            else
+                print("Nothing to redo")
+            end
+        elseif not app.ui.bpmTextInputActive and not app.ui.patternNameInputActive then
+            -- Handle shortcuts only when text input is not active
+            if key == "space" then
+                -- Spacebar: Play/Stop toggle
+                if app.sequencer.isPlaying then
+                    app.sequencer:stop()
+                    print("Stopped")
+                else
+                    app.sequencer:play()
+                    print("Playing")
+                end
+            elseif key >= "1" and key <= "8" then
+                -- Number keys 1-8: Track preview
+                local trackNum = tonumber(key)
+                if app.audio then
+                    app.audio:playSample(trackNum)
+                    print("Preview track " .. trackNum .. ": " .. app.ui.trackLabels[trackNum])
+                end
+            elseif key == "up" or key == "down" or key == "left" or key == "right" then
+                -- Arrow keys: Grid navigation
+                app.ui:handleArrowKeyNavigation(key)
+            elseif key == "return" or key == "kpenter" then
+                -- Enter: Toggle current step
+                app.ui:toggleCurrentStep()
+            else
+                -- Let UI handle other key input (for text input)
+                app.ui:keypressed(key)
+            end
+        else
+            -- Text input is active, let UI handle all keys
+            app.ui:keypressed(key)
+        end
     end
     
     -- Global key handling
